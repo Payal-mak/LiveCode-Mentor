@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LiveCode Mentor — Lo-Fi Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=DM+Sans:wght@300;400;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ── RESET & BASE ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --surface2:  #21262d;
+    --border:    #30363d;
+    --accent:    #58a6ff;
+    --accent2:   #3fb950;
+    --warn:      #f78166;
+    --hint:      #e3b341;
+    --text:      #c9d1d9;
+    --muted:     #8b949e;
+    --code-bg:   #0d1117;
+    --sidebar-w: 320px;
+    --header-h:  42px;
+    --tab-h:     36px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── SCREEN MANAGEMENT ── */
+  .screen { display: none; flex: 1; overflow: hidden; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── TOP HEADER BAR ── */
+  .vscode-header {
+    height: var(--header-h);
+    background: #1f2428;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .traffic-lights { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.red   { background: #ff5f57; }
+  .dot.yellow{ background: #febc2e; }
+  .dot.green { background: #28c840; }
+  .app-title {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .5px;
+  }
+  .badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+    letter-spacing: .5px;
+  }
+
+  /* ── TAB BAR ── */
+  .tab-bar {
+    height: var(--tab-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 0 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: color .15s;
+  }
+  .tab.active { color: var(--text); border-bottom: 2px solid var(--accent); background: var(--bg); }
+  .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
+
+  /* ── MAIN LAYOUT ── */
+  .main-layout {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── LEFT: ACTIVITY BAR ── */
+  .activity-bar {
+    width: 48px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .act-icon {
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px;
+    color: var(--muted);
+    transition: color .15s, background .15s;
+  }
+  .act-icon:hover, .act-icon.active { color: var(--text); background: var(--surface2); }
+
+  /* ── MIDDLE: CODE EDITOR ── */
+  .code-editor {
+    flex: 1;
+    background: var(--code-bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .editor-inner {
+    flex: 1;
+    display: flex;
+    overflow: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.8;
+  }
+  .line-numbers {
+    padding: 16px 8px 16px 16px;
+    color: var(--muted);
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid var(--border);
+    min-width: 48px;
+    flex-shrink: 0;
+  }
+  .ln { display: block; font-size: 12px; }
+  .code-area {
+    padding: 16px 0 16px 20px;
+    flex: 1;
+    white-space: pre;
+    overflow: auto;
+  }
+
+  /* syntax colours */
+  .kw   { color: #ff7b72; }
+  .type { color: #ffa657; }
+  .fn   { color: #d2a8ff; }
+  .str  { color: #a5d6ff; }
+  .num  { color: #79c0ff; }
+  .cmt  { color: #6e7681; font-style: italic; }
+  .var  { color: #c9d1d9; }
+
+  /* highlight + hint inline */
+  .hl-line {
+    display: inline-block;
+    background: rgba(88,166,255,.08);
+    border-left: 2px solid var(--accent);
+    padding-left: 6px;
+    width: 100%;
+    cursor: pointer;
+    border-radius: 0 4px 4px 0;
+    transition: background .2s;
+  }
+  .hl-line:hover { background: rgba(88,166,255,.18); }
+  .inline-hint {
+    display: inline;
+    margin-left: 12px;
+    font-size: 11px;
+    color: var(--hint);
+    font-style: italic;
+    font-family: 'DM Sans', sans-serif;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  .hl-line:hover .inline-hint { opacity: 1; }
+
+  .status-bar {
+    height: 24px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 16px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .status-item { opacity: .85; }
+  .status-item.warn { color: #ffdd57; opacity: 1; font-weight: 600; }
+
+  /* ── RIGHT: AI SIDEBAR ── */
+  .ai-sidebar {
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .mode-toggle {
+    display: flex;
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .mode-btn {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    color: var(--muted);
+    background: transparent;
+    transition: all .15s;
+  }
+  .mode-btn.active { background: var(--accent); color: #fff; }
+
+  .sidebar-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .sidebar-body::-webkit-scrollbar { width: 4px; }
+  .sidebar-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* cards */
+  .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+  }
+  .card-icon { font-size: 14px; }
+  .card-body { padding: 12px; font-size: 13px; line-height: 1.7; color: var(--text); }
+
+  .explanation-card .card-header { color: var(--accent); }
+  .hint-card      .card-header { color: var(--hint); }
+  .concept-card   .card-header { color: var(--accent2); }
+  .error-card     .card-header { color: var(--warn); }
+
+  .concept-tag {
+    display: inline-block;
+    background: rgba(63,185,80,.12);
+    border: 1px solid rgba(63,185,80,.3);
+    color: var(--accent2);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 100px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+
+  .hint-step {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12.5px;
+    align-items: flex-start;
+  }
+  .hint-num {
+    width: 20px; height: 20px;
+    background: var(--hint);
+    color: #000;
+    font-weight: 700;
+    font-size: 11px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #79b8ff; transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-green { background: var(--accent2); color: #000; }
+  .btn-green:hover { background: #56d364; transform: translateY(-1px); }
+
+  /* ── SCREEN 2: CODE FLOW VIZ ── */
+  #screen2 { background: var(--bg); }
+  .viz-wrapper {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  .viz-left {
+    flex: 1;
+    padding: 24px 28px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+  .viz-right {
+    width: 260px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+  .viz-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .flow-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .flow-node {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    min-width: 200px;
+    text-align: center;
+    position: relative;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .flow-node:hover { transform: scale(1.04); box-shadow: 0 4px 20px rgba(0,0,0,.4); }
+  .flow-node.blue   { background: rgba(88,166,255,.15); border: 2px solid var(--accent); color: var(--accent); }
+  .flow-node.green  { background: rgba(63,185,80,.15);  border: 2px solid var(--accent2); color: var(--accent2); }
+  .flow-node.yellow { background: rgba(227,179,65,.15); border: 2px solid var(--hint); color: var(--hint); }
+  .flow-node.diamond {
+    transform: rotate(45deg);
+    width: 120px; height: 120px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    background: rgba(227,179,65,.15);
+    border: 2px solid var(--hint);
+    color: var(--hint);
+    min-width: unset;
+    border-radius: 10px;
+  }
+  .flow-node.diamond span { transform: rotate(-45deg); display: block; font-size: 11px; text-align: center; }
+  .flow-arrow {
+    width: 2px;
+    height: 28px;
+    background: var(--border);
+    position: relative;
+    margin: 0 auto;
+  }
+  .flow-arrow::after {
+    content: '▼';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .diamond-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 4px 0;
+  }
+  .step-info {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .step-info:hover { border-color: var(--accent); }
+  .step-info .label { font-weight: 700; color: var(--accent); font-size: 11px; margin-bottom: 4px; }
+
+  /* ── SCREEN 3: RECOMMENDATIONS ── */
+  #screen3 { background: var(--bg); }
+  .rec-wrapper {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+  }
+  .rec-left {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+  .rec-right {
+    width: 280px;
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .rec-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s;
+  }
+  .rec-card:hover { border-color: var(--accent); transform: translateX(4px); }
+  .rec-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .rec-icon.leet { background: rgba(255,161,22,.15); }
+  .rec-icon.cf   { background: rgba(88,166,255,.15); }
+  .rec-icon.art  { background: rgba(63,185,80,.15); }
+  .rec-info { flex: 1; }
+  .rec-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .rec-sub  { font-size: 11px; color: var(--muted); }
+  .difficulty {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .easy   { background: rgba(63,185,80,.2);  color: var(--accent2); }
+  .medium { background: rgba(227,179,65,.2); color: var(--hint); }
+
+  .progress-bar {
+    background: var(--surface2);
+    border-radius: 100px;
+    height: 6px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 100px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    animation: grow .8s ease-out forwards;
+  }
+  @keyframes grow { from { width: 0 } }
+
+  /* ── NAV PILLS ── */
+  .nav-pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    height: 100%;
+  }
+  .nav-pill {
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: all .15s;
+  }
+  .nav-pill.active  { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .nav-pill:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+  /* ── ANNOTATION TAG ── */
+  .lo-fi-tag {
+    position: fixed;
+    top: 12px;
+    right: 70px;
+    background: rgba(227,179,65,.15);
+    border: 1px solid var(--hint);
+    color: var(--hint);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    z-index: 100;
+  }
+
+  /* ── PULSE animation for active elements ── */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .pulse { animation: pulse 2s infinite; }
+
+  /* ── TOOLTIP ── */
+  .tooltip-wrap { position: relative; }
+  .tooltip-wrap:hover .tooltip { opacity: 1; pointer-events: auto; }
+  .tooltip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2428;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+    z-index: 200;
+    color: var(--text);
+  }
+
+  /* ── ERROR UNDERLINE ── */
+  .err-underline {
+    text-decoration: underline wavy var(--warn);
+    text-underline-offset: 3px;
+  }
+
+  /* scrollbar global */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="lo-fi-tag">LO-FI PROTOTYPE</div>
+
+<!-- ════════════════════════════════════
+     SCREEN 1 — IDE MAIN LAYOUT
+════════════════════════════════════ -->
+<div id="screen1" class="screen active">
+
+  <!-- Header -->
+  <div class="vscode-header">
+    <div class="traffic-lights">
+      <div class="dot red"></div>
+      <div class="dot yellow"></div>
+      <div class="dot green"></div>
+    </div>
+    <div class="app-title">LiveCode Mentor — main.cpp &nbsp;·&nbsp; VSCode Extension</div>
+    <div class="nav-pills">
+      <div class="nav-pill active" onclick="showScreen(1)">① IDE View</div>
+      <div class="nav-pill" onclick="showScreen(2)">② Code Flow</div>
+      <div class="nav-pill" onclick="showScreen(3)">③ Recommendations</div>
+    </div>
+    <span class="badge">STAGE 1</span>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <div class="tab active"><span class="tab-dot"></span>main.cpp</div>
+    <div class="tab">utils.cpp</div>
+    <div class="tab">README.md</div>
+  </div>
+
+  <div class="main-layout">
+
+    <!-- Activity bar -->
+    <div class="activity-bar">
+      <div class="act-icon active tooltip-wrap" title="">📁<span class="tooltip">Explorer</span></div>
+      <div class="act-icon tooltip-wrap">🔍<span class="tooltip">Search</span></div>
+      <div class="act-icon tooltip-wrap">🔀<span class="tooltip">Source Control</span></div>
+      <div class="act-icon tooltip-wrap">🐞<span class="tooltip">Debug</span></div>
+      <div class="act-icon tooltip-wrap" style="margin-top:auto">⚙️<span class="tooltip">Settings</span></div>
+    </div>
+
+    <!-- Code editor -->
+    <div class="code-editor">
+      <div class="editor-inner">
+
+        <div class="line-numbers">
+          <span class="ln">1</span><span class="ln">2</span><span class="ln">3</span>
+          <span class="ln">4</span><span class="ln">5</span><span class="ln">6</span>
+          <span class="ln">7</span><span class="ln">8</span><span class="ln">9</span>
+          <span class="ln">10</span><span class="ln">11</span><span class="ln">12</span>
+          <span class="ln">13</span><span class="ln">14</span><span class="ln">15</span>
+          <span class="ln">16</span><span class="ln">17</span><span class="ln">18</span>
+          <span class="ln">19</span><span class="ln">20</span>
+        </div>
+
+        <div class="code-area"><span class="cmt">// LiveCode Mentor — example: Array Sum</span>
+<span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span>
+<span class="kw">using namespace</span> <span class="type">std</span>;
+
+<span class="type">int</span> <span class="fn">main</span>() {
+    <span class="type">int</span> <span class="var">n</span> = <span class="num">5</span>;
+    <span class="type">int</span> <span class="var">arr</span>[] = {<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>};
+    <span class="type">int</span> <span class="var">sum</span> = <span class="num">0</span>;
+
+<span class="hl-line" onclick="highlightExplain()" title="Click to get explanation">    <span class="kw">for</span>(<span class="type">int</span> <span class="var">i</span> = <span class="num">0</span>; <span class="var">i</span> &lt; <span class="var">n</span>; <span class="var">i</span>++) {<span class="inline-hint">← for loop detected 💡</span></span>
+<span class="hl-line">        <span class="var">sum</span> += <span class="var">arr</span>[<span class="var">i</span>];</span>
+    }
+
+    cout &lt;&lt; <span class="str">"Sum = "</span> &lt;&lt; <span class="var">sum</span> &lt;&lt; <span class="fn">endl</span>;
+
+    <span class="cmt">// ⚠ potential issue below</span>
+    <span class="type">int</span> <span class="var">x</span>;
+    cout &lt;&lt; <span class="err-underline"><span class="var">x</span></span>;  <span class="cmt">// uninitialized variable</span>
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span class="status-item">✓ C++ · main.cpp</span>
+        <span class="status-item warn">⚠ 1 warning</span>
+        <span class="status-item">Ln 10, Col 5</span>
+        <span class="status-item" style="margin-left:auto">LiveCode Mentor <span class="pulse">●</span> Active</span>
+      </div>
+    </div>
+
+    <!-- AI Sidebar -->
+    <div class="ai-sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">🤖 AI Mentor</span>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="modeLearn" onclick="setMode('learn')">Learn</button>
+          <button class="mode-btn" id="modeDev" onclick="setMode('dev')">Dev</button>
+        </div>
+      </div>
+
+      <div class="sidebar-body" id="sidebarBody">
+
+        <!-- Concept detection -->
+        <div class="card concept-card">
+          <div class="card-header"><span class="card-icon">🏷</span>Concepts Detected</div>
+          <div class="card-body">
+            <span class="concept-tag">for loop</span>
+            <span class="concept-tag">array</span>
+            <span class="concept-tag">accumulator</span>
+            <span class="concept-tag">variable scope</span>
+          </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="card explanation-card" id="explainCard">
+          <div class="card-header"><span class="card-icon">📖</span>Explanation</div>
+          <div class="card-body" id="explainBody">
+            This <strong style="color:var(--accent)">for loop</strong> starts at index <code style="background:var(--surface);padding:1px 5px;border-radius:3px">i=0</code> and runs <strong>n times</strong>, adding each element of <code style="background:var(--surface);padding:1px 5px;border-radius:3px">arr[]</code> to <code style="background:var(--surface);padding:1px 5px;border-radius:3px">sum</code>.<br/><br/>
+            It iterates through all array elements and accumulates their total — a classic <strong style="color:var(--accent)">running sum</strong> pattern.
+          </div>
+        </div>
+
+        <!-- Error card -->
+        <div class="card error-card">
+          <div class="card-header"><span class="card-icon">⚠️</span>Beginner-Friendly Error</div>
+          <div class="card-body" style="font-size:12.5px">
+            <strong style="color:var(--warn)">Line 16: Uninitialized variable <code style="background:var(--surface);padding:1px 5px;border-radius:3px;color:var(--warn)">x</code></strong><br/><br/>
+            You declared <code style="background:var(--surface);padding:1px 5px;border-radius:3px">int x</code> but never assigned it a value before using it. Think of a variable like a box — you created the box, but put nothing in it. C++ doesn't automatically fill it with 0!
+          </div>
+        </div>
+
+        <!-- Hint -->
+        <div class="card hint-card">
+          <div class="card-header"><span class="card-icon">💡</span>Hint — Check Your Loop</div>
+          <div class="card-body">
+            <div class="hint-step">
+              <div class="hint-num">1</div>
+              <div>What value does <code style="background:var(--surface);padding:1px 5px;border-radius:3px">i</code> start at? Is that the first valid array index?</div>
+            </div>
+            <div class="hint-step">
+              <div class="hint-num">2</div>
+              <div>Does your loop condition <code style="background:var(--surface);padding:1px 5px;border-radius:3px">i &lt; n</code> prevent going out of bounds?</div>
+            </div>
+            <div class="hint-step">
+              <div class="hint-num">3</div>
+              <div>Try adding a <code style="background:var(--surface);padding:1px 5px;border-radius:3px">cout</code> inside the loop to see each step!</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <button class="btn btn-primary" onclick="showScreen(2)">
+          📊 View Code Flow Visualization
+        </button>
+        <button class="btn btn-secondary" onclick="showScreen(3)">
+          📚 Learning Recommendations
+        </button>
+        <button class="btn btn-green" id="verifyBtn" onclick="verifyCode()">
+          ✓ Verify My Fix
+        </button>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 2 — CODE FLOW VISUALIZATION
+════════════════════════════════════ -->
+<div id="screen2" class="screen">
+
+  <div class="vscode-header">
+    <div class="traffic-lights">
+      <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+    </div>
+    <div class="app-title">LiveCode Mentor — Code Flow Visualization</div>
+    <div class="nav-pills">
+      <div class="nav-pill" onclick="showScreen(1)">① IDE View</div>
+      <div class="nav-pill active" onclick="showScreen(2)">② Code Flow</div>
+      <div class="nav-pill" onclick="showScreen(3)">③ Recommendations</div>
+    </div>
+    <span class="badge">STAGE 1</span>
+  </div>
+
+  <div class="viz-wrapper">
+
+    <div class="viz-left">
+      <div class="viz-title">📊 Execution Flow — main.cpp (Array Sum)</div>
+
+      <div class="flow-container">
+
+        <div class="flow-node blue" onclick="selectStep(0)">▶ Program Start</div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node green" onclick="selectStep(1)">int n=5 · int arr[]={1..5} · int sum=0</div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node blue" onclick="selectStep(2)">for(int i=0; i&lt;n; i++)</div>
+        <div class="flow-arrow"></div>
+
+        <div class="diamond-wrap">
+          <div class="flow-node diamond" onclick="selectStep(3)"><span>i &lt; n<br/>condition</span></div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node yellow" onclick="selectStep(4)">sum += arr[i]</div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node blue" onclick="selectStep(5)">i++  →  back to condition</div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node green" onclick="selectStep(6)">cout &lt;&lt; "Sum = " &lt;&lt; sum</div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node blue">■ Program End</div>
+
+      </div>
+    </div>
+
+    <div class="viz-right">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Step Details</div>
+
+      <div class="step-info" id="stepInfo">
+        <div class="label">👆 CLICK A NODE</div>
+        Click any block in the flow diagram to see what happens at that step and how variables change.
+      </div>
+
+      <div style="margin-top:16px;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Variable Trace</div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="color:var(--accent);font-size:10px">🔢 i (loop counter)</div>
+        <div class="card-body" style="font-family:'JetBrains Mono',monospace;font-size:11px;display:flex;gap:6px;flex-wrap:wrap">
+          <span style="background:var(--surface);padding:2px 8px;border-radius:4px">0→1→2→3→4→<span style="color:var(--warn)">5(stop)</span></span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="color:var(--accent2);font-size:10px">➕ sum (accumulates)</div>
+        <div class="card-body" style="font-family:'JetBrains Mono',monospace;font-size:11px">
+          0 → 1 → 3 → 6 → 10 → <strong style="color:var(--accent2)">15</strong>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header" style="color:var(--hint);font-size:10px">📌 arr[i] at each step</div>
+        <div class="card-body" style="font-family:'JetBrains Mono',monospace;font-size:11px">
+          arr[0]=1, arr[1]=2<br/>arr[2]=3, arr[3]=4<br/>arr[4]=5
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="margin-top:16px" onclick="showScreen(1)">← Back to Editor</button>
+      <button class="btn btn-secondary" style="margin-top:8px" onclick="showScreen(3)">📚 Recommendations →</button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 3 — LEARNING RECOMMENDATIONS
+════════════════════════════════════ -->
+<div id="screen3" class="screen">
+
+  <div class="vscode-header">
+    <div class="traffic-lights">
+      <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+    </div>
+    <div class="app-title">LiveCode Mentor — Learning Recommendations</div>
+    <div class="nav-pills">
+      <div class="nav-pill" onclick="showScreen(1)">① IDE View</div>
+      <div class="nav-pill" onclick="showScreen(2)">② Code Flow</div>
+      <div class="nav-pill active" onclick="showScreen(3)">③ Recommendations</div>
+    </div>
+    <span class="badge">STAGE 1</span>
+  </div>
+
+  <div class="rec-wrapper">
+
+    <div class="rec-left">
+      <div style="margin-bottom:24px">
+        <div class="rec-section-title">📌 Concept Being Studied</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;align-items:center;gap:12px">
+          <div style="font-size:32px">🔄</div>
+          <div>
+            <div style="font-size:18px;font-weight:700;margin-bottom:4px">for loop <span style="font-size:13px;color:var(--muted);font-weight:400">+ Array Iteration</span></div>
+            <div style="font-size:12px;color:var(--muted)">Auto-detected from your code on line 10</div>
+            <div style="margin-top:8px">
+              <span class="concept-tag">iteration</span>
+              <span class="concept-tag">array</span>
+              <span class="concept-tag">accumulator</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rec-section-title">🏆 Practice Problems</div>
+
+      <div class="rec-card">
+        <div class="rec-icon leet">🟡</div>
+        <div class="rec-info">
+          <div class="rec-name">Running Sum of 1d Array <span class="difficulty easy">Easy</span></div>
+          <div class="rec-sub">LeetCode #1480 · Arrays · Prefix Sum</div>
+        </div>
+      </div>
+
+      <div class="rec-card">
+        <div class="rec-icon cf">🔵</div>
+        <div class="rec-info">
+          <div class="rec-name">Simple Array Sum <span class="difficulty easy">Easy</span></div>
+          <div class="rec-sub">HackerRank · Arrays · for loop</div>
+        </div>
+      </div>
+
+      <div class="rec-card">
+        <div class="rec-icon leet">🟡</div>
+        <div class="rec-info">
+          <div class="rec-name">Find the Pivot Index <span class="difficulty medium">Medium</span></div>
+          <div class="rec-sub">LeetCode #724 · Prefix Sum · Iteration</div>
+        </div>
+      </div>
+
+      <div class="rec-section-title" style="margin-top:24px">📰 Articles & Tutorials</div>
+
+      <div class="rec-card">
+        <div class="rec-icon art">📗</div>
+        <div class="rec-info">
+          <div class="rec-name">Understanding Loops in C++</div>
+          <div class="rec-sub">Medium · 5 min read · Beginner</div>
+        </div>
+      </div>
+
+      <div class="rec-card">
+        <div class="rec-icon art">📘</div>
+        <div class="rec-info">
+          <div class="rec-name">Arrays and Iteration — cppreference.com</div>
+          <div class="rec-sub">Official Docs · Reference</div>
+        </div>
+      </div>
+
+      <div class="rec-card">
+        <div class="rec-icon art">🎥</div>
+        <div class="rec-info">
+          <div class="rec-name">For Loops Explained Visually</div>
+          <div class="rec-sub">YouTube · CS Dojo · 8 min</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Progress panel -->
+    <div class="rec-right">
+      <div class="rec-section-title">📈 Your Progress</div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header" style="color:var(--accent);font-size:10px">🔄 for loops</div>
+        <div class="card-body" style="font-size:12px">
+          <div style="margin-bottom:6px;display:flex;justify-content:space-between"><span>Mastery</span><span style="color:var(--accent)">62%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:62%"></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header" style="color:var(--accent2);font-size:10px">📦 Arrays</div>
+        <div class="card-body" style="font-size:12px">
+          <div style="margin-bottom:6px;display:flex;justify-content:space-between"><span>Mastery</span><span style="color:var(--accent2)">45%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:45%"></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header" style="color:var(--hint);font-size:10px">🔀 Conditionals</div>
+        <div class="card-body" style="font-size:12px">
+          <div style="margin-bottom:6px;display:flex;justify-content:space-between"><span>Mastery</span><span style="color:var(--hint)">80%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;margin-bottom:10px">📅 SESSION STATS</div>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Time coding</span><span>24 min</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Concepts seen</span><span>4</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Hints used</span><span>2</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Errors explained</span><span style="color:var(--warn)">1 ⚠</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--hint);margin-bottom:6px">💡 Tip</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6">
+          Try using a <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">while</code> loop to solve the same problem — it'll help you understand what <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">for</code> is doing internally!
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="margin-top:20px" onclick="showScreen(1)">← Back to Editor</button>
+    </div>
+
+  </div>
+</div>
+
+
+<script>
+  // ── Screen navigation ──
+  function showScreen(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen' + n).classList.add('active');
+  }
+
+  // ── Mode toggle ──
+  function setMode(mode) {
+    document.getElementById('modeLearn').classList.toggle('active', mode === 'learn');
+    document.getElementById('modeDev').classList.toggle('active',   mode === 'dev');
+
+    const body = document.getElementById('sidebarBody');
+    if (mode === 'dev') {
+      document.getElementById('explainBody').innerHTML =
+        '<code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent2)">O(n)</code> iteration over array, accumulating sum.<br/><code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--muted)">sum = Σ arr[i] for i in [0,n)</code>';
+    } else {
+      document.getElementById('explainBody').innerHTML =
+        'This <strong style="color:var(--accent)">for loop</strong> starts at index <code style="background:var(--surface);padding:1px 5px;border-radius:3px">i=0</code> and runs <strong>n times</strong>, adding each element of <code style="background:var(--surface);padding:1px 5px;border-radius:3px">arr[]</code> to <code style="background:var(--surface);padding:1px 5px;border-radius:3px">sum</code>.<br/><br/>It iterates through all array elements and accumulates their total — a classic <strong style="color:var(--accent)">running sum</strong> pattern.';
+    }
+  }
+
+  // ── Inline highlight click ──
+  function highlightExplain() {
+    const card = document.getElementById('explainCard');
+    card.style.border = '1px solid var(--accent)';
+    card.style.boxShadow = '0 0 12px rgba(88,166,255,.3)';
+    setTimeout(() => {
+      card.style.border = '1px solid var(--border)';
+      card.style.boxShadow = 'none';
+    }, 1800);
+  }
+
+  // ── Verify button ──
+  let verified = false;
+  function verifyCode() {
+    const btn = document.getElementById('verifyBtn');
+    if (!verified) {
+      btn.textContent = '✓ Code looks good! Fix the uninitialized variable next.';
+      btn.style.background = 'var(--accent2)';
+      verified = true;
+    } else {
+      btn.textContent = '✓ Verify My Fix';
+      btn.style.background = 'var(--accent2)';
+      verified = false;
+    }
+  }
+
+  // ── Flow step selector ──
+  const stepData = [
+    { label: 'PROGRAM START', text: 'The program begins execution. Memory is allocated for variables.' },
+    { label: 'VARIABLE INIT', text: 'n=5 sets array size. arr[] is loaded into memory at indices 0–4. sum starts at 0 — the identity element for addition.' },
+    { label: 'LOOP SETUP', text: 'The for loop initializes i=0. This sets the starting index for array traversal.' },
+    { label: 'CONDITION CHECK', text: 'Is i < n? If YES → execute loop body. If NO → exit loop and continue after the closing brace.' },
+    { label: 'LOOP BODY', text: 'sum += arr[i] means sum = sum + arr[i]. This accumulates the value at position i into the running total.' },
+    { label: 'INCREMENT', text: 'i++ increases i by 1. Control jumps back to the condition check. This is what makes the loop "move forward".' },
+    { label: 'OUTPUT', text: 'Loop exited because i reached 5 (= n). The final sum (15) is printed to the console.' },
+  ];
+
+  function selectStep(idx) {
+    const info = document.getElementById('stepInfo');
+    const d = stepData[idx];
+    info.innerHTML = `<div class="label">📍 ${d.label}</div>${d.text}`;
+    info.style.borderColor = 'var(--accent)';
+    setTimeout(() => info.style.borderColor = 'var(--border)', 1500);
+  }
+</script>
+</body>
+</html>
