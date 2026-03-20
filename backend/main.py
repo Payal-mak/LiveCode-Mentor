@@ -29,11 +29,11 @@ def health():
 
 @app.post("/analyze")
 async def analyze(payload: CodePayload):
-    print(f"[LiveCode Mentor] Received code ({payload.trigger}) - {len(payload.code)} chars - {payload.language}")
+    print(f"[LiveCode Mentor] Received code ({payload.trigger}) - {len(payload.code)} chars")
     return {
         "status": "ok",
-        "language": payload.language,
-        "trigger": payload.trigger,
-        "code_length": len(payload.code),
-        "message": f"Code received! ({len(payload.code)} chars, trigger: {payload.trigger})"
+        "explanation": f"Your code has {len(payload.code)} characters. AI explanation coming in Hour 4!",
+        "concepts": ["placeholder"],
+        "has_error": False,
+        "friendly_error": None
     }

@@ -14,10 +14,36 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "livecode-mentor",
+          "title": "LiveCode Mentor",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "livecode-mentor": [
+        {
+          "type": "webview",
+          "id": "livecodeMentor",
+          "name": "LiveCode Mentor"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "livecode-mentor.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "livecode-mentor.generateFlow",
+        "title": "Generate Flow"
+      },
+      {
+        "command": "livecode-mentor.checkFix",
+        "title": "Check Fix"
       }
     ]
   },

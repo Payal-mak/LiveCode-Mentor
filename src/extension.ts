@@ -1,38 +1,57 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
+import { SidebarProvider } from './SidebarProvider';
 
 const BACKEND_URL = 'http://localhost:8000';
 let debounceTimer: ReturnType<typeof setTimeout>;
+let sidebarProvider: SidebarProvider;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('LiveCode Mentor is now active!');
 
-    // Health check on startup
+    // Register sidebar
+    sidebarProvider = new SidebarProvider(context.extensionUri);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider('livecodeMentor', sidebarProvider)
+    );
+
+    // Register commands
+    context.subscriptions.push(
+        vscode.commands.registerCommand('livecode-mentor.generateFlow', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) { sendCodeToBackend(editor.document, 'flow'); }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('livecode-mentor.checkFix', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) { sendCodeToBackend(editor.document, 'checkfix'); }
+        })
+    );
+
+    // Health check
     axios.get(`${BACKEND_URL}/health`)
         .then(res => {
             vscode.window.showInformationMessage(`LiveCode Mentor: ${res.data.status}`);
         })
         .catch(() => {
-            vscode.window.showErrorMessage('LiveCode Mentor: Backend not reachable. Start FastAPI server!');
+            vscode.window.showErrorMessage('LiveCode Mentor: Backend not reachable!');
         });
 
-    // FR1: Monitor code changes in real time
+    // FR1: Monitor changes
     const changeDisposable = vscode.workspace.onDidChangeTextDocument((event) => {
-        // Only track code files, ignore output/debug panels
         if (event.document.uri.scheme !== 'file') { return; }
-
         clearTimeout(debounceTimer);
-
-        // FR2: Wait 1.5s after user stops typing
+        sidebarProvider.showLoading();
         debounceTimer = setTimeout(() => {
             sendCodeToBackend(event.document, 'change');
         }, 1500);
     });
 
-    // FR2: Also capture immediately on save
+    // FR2: Capture on save
     const saveDisposable = vscode.workspace.onDidSaveTextDocument((document) => {
-        if (document.uri.scheme !== 'file') {return;}
-
+        if (document.uri.scheme !== 'file') { return; }
         clearTimeout(debounceTimer);
         sendCodeToBackend(document, 'save');
     });
@@ -43,22 +62,17 @@ export function activate(context: vscode.ExtensionContext) {
 async function sendCodeToBackend(document: vscode.TextDocument, trigger: string) {
     const code = document.getText();
     const language = document.languageId;
-    const fileName = document.fileName;
+    if (code.trim().length === 0) { return; }
 
-    // Skip empty files
-    if (code.trim().length === 0) {return;}
-
-    console.log(`[LiveCode Mentor] Sending code to backend (trigger: ${trigger})`);
+    console.log(`[LiveCode Mentor] Sending code (trigger: ${trigger})`);
 
     try {
         const res = await axios.post(`${BACKEND_URL}/analyze`, {
-            code,
-            language,
-            fileName,
-            trigger
+            code, language, trigger
         });
-        console.log(`[LiveCode Mentor] Backend response:`, res.data);
-        vscode.window.showInformationMessage(`LiveCode Mentor: ${res.data.message}`);
+        // Send result to sidebar
+        sidebarProvider.sendMessage('explanation', res.data);
+        console.log('[LiveCode Mentor] Sidebar updated!');
     } catch (e) {
         console.error('[LiveCode Mentor] Backend error:', e);
     }

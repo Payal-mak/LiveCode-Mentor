@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveCode Mentor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            color: var(--vscode-foreground);
+            background: var(--vscode-sideBar-background);
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--vscode-activityBar-background);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-icon { font-size: 18px; }
+
+        .header-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--vscode-activityBar-foreground);
+            letter-spacing: 0.5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+            margin-left: auto;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--vscode-editorGroupHeader-tabsBackground);
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px 4px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--vscode-tab-inactiveForeground);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+        }
+
+        .tab:hover {
+            color: var(--vscode-tab-activeForeground);
+            background: var(--vscode-tab-hoverBackground);
+        }
+
+        .tab.active {
+            color: var(--vscode-tab-activeForeground);
+            border-bottom: 2px solid var(--vscode-focusBorder);
+            background: var(--vscode-tab-activeBackground);
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            gap: 12px;
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--vscode-panel-border);
+            border-top: 2px solid var(--vscode-focusBorder);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 12px;
+            text-align: center;
+            opacity: 0.7;
+        }
+
+        .card {
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 8px;
+            opacity: 0.6;
+        }
+
+        .card-title.blue { color: #4FC3F7; }
+        .card-title.green { color: #81C784; }
+        .card-title.amber { color: #FFB74D; }
+        .card-title.red { color: #E57373; }
+
+        .card-body {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--vscode-foreground);
+        }
+
+        .concepts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .concept-pill {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            font-weight: 500;
+        }
+
+        .error-card {
+            background: rgba(229, 115, 115, 0.1);
+            border: 1px solid rgba(229, 115, 115, 0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .hint-card {
+            background: rgba(255, 183, 77, 0.1);
+            border: 1px solid rgba(255, 183, 77, 0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover { opacity: 0.85; }
+
+        .btn-primary {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--vscode-descriptionForeground);
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+        #mermaid-container {
+            background: var(--vscode-editor-background);
+            border-radius: 6px;
+            padding: 12px;
+            overflow-x: auto;
+            font-size: 11px;
+            white-space: pre;
+            font-family: var(--vscode-editor-font-family);
+            color: var(--vscode-foreground);
+        }
+
+        .show-flow-btn {
+            width: 100%;
+            padding: 10px;
+            border: 1px dashed var(--vscode-panel-border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--vscode-foreground);
+            font-size: 12px;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .show-flow-btn:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        .success-state {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: rgba(129, 199, 132, 0.1);
+            border: 1px solid rgba(129, 199, 132, 0.3);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #81C784;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <span class="header-icon">🎓</span>
+        <span class="header-title">LIVECODE MENTOR</span>
+        <div class="status-dot"></div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('explanation')">💡 Explain</div>
+        <div class="tab" onclick="switchTab('hint')">🔍 Hint</div>
+        <div class="tab" onclick="switchTab('flow')">🔀 Flow</div>
+    </div>
+
+    <div class="content">
+
+        <!-- EXPLANATION TAB -->
+        <div class="tab-panel active" id="panel-explanation">
+            <div class="loading" id="explanation-loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Open a Python file and start coding...<br>LiveCode Mentor will analyse your code!</div>
+            </div>
+            <div id="explanation-content" style="display:none;">
+                <div class="card">
+                    <div class="card-title blue">📖 What your code does</div>
+                    <div class="card-body" id="explanation-text"></div>
+                </div>
+                <div class="card" id="concepts-card" style="display:none;">
+                    <div class="card-title green">🧠 Concepts detected</div>
+                    <div class="concepts" id="concepts-list"></div>
+                </div>
+                <div class="error-card" id="error-card" style="display:none;">
+                    <div class="card-title red">⚠️ Error found</div>
+                    <div class="card-body" id="error-text"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HINT TAB -->
+        <div class="tab-panel" id="panel-hint">
+            <div class="empty-state" id="hint-empty">
+                <div class="empty-icon">🔍</div>
+                <div>No issues detected yet.<br>Write some code and I'll watch for mistakes!</div>
+            </div>
+            <div id="hint-content" style="display:none;">
+                <div class="hint-card">
+                    <div class="card-title amber">💡 Hint</div>
+                    <div class="card-body" id="hint-text"></div>
+                </div>
+                <button class="btn btn-primary" onclick="checkFix()">✅ Check My Fix</button>
+            </div>
+            <div class="success-state" id="hint-success" style="display:none;">
+                ✅ Great job! Issue resolved!
+            </div>
+        </div>
+
+        <!-- FLOW TAB -->
+        <div class="tab-panel" id="panel-flow">
+            <button class="show-flow-btn" onclick="requestFlow()">
+                🔀 Generate Code Flow Diagram
+            </button>
+            <div class="loading" id="flow-loading" style="display:none;">
+                <div class="spinner"></div>
+                <div class="loading-text">Generating flow diagram...</div>
+            </div>
+            <div id="mermaid-container" style="display:none;"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelector('[onclick="switchTab(\'' + tabName + '\')"]').classList.add('active');
+            document.getElementById('panel-' + tabName).classList.add('active');
+        }
+
+        function requestFlow() {
+            vscode.postMessage({ type: 'requestFlow' });
+            document.getElementById('flow-loading').style.display = 'flex';
+            document.getElementById('mermaid-container').style.display = 'none';
+        }
+
+        function checkFix() {
+            vscode.postMessage({ type: 'checkFix' });
+        }
+
+        window.addEventListener('message', event => {
+            const message = event.data;
+            if (message.type === 'explanation') {
+                showExplanation(message.data);
+            } else if (message.type === 'hint') {
+                showHint(message.data);
+            } else if (message.type === 'flow') {
+                showFlow(message.data);
+            } else if (message.type === 'loading') {
+                showLoading();
+            }
+        });
+
+        function showLoading() {
+            document.getElementById('explanation-loading').style.display = 'flex';
+            document.getElementById('explanation-content').style.display = 'none';
+        }
+
+        function showExplanation(data) {
+            document.getElementById('explanation-loading').style.display = 'none';
+            document.getElementById('explanation-content').style.display = 'block';
+            document.getElementById('explanation-text').textContent = data.explanation || 'Analysing...';
+
+            if (data.concepts && data.concepts.length > 0) {
+                document.getElementById('concepts-card').style.display = 'block';
+                const list = document.getElementById('concepts-list');
+                list.innerHTML = data.concepts.map(c =>
+                    '<span class="concept-pill">' + c + '</span>'
+                ).join('');
+            } else {
+                document.getElementById('concepts-card').style.display = 'none';
+            }
+
+            if (data.friendly_error) {
+                document.getElementById('error-card').style.display = 'block';
+                document.getElementById('error-text').textContent = data.friendly_error;
+            } else {
+                document.getElementById('error-card').style.display = 'none';
+            }
+        }
+
+        function showHint(data) {
+            if (data && data.has_mistake) {
+                document.getElementById('hint-empty').style.display = 'none';
+                document.getElementById('hint-success').style.display = 'none';
+                document.getElementById('hint-content').style.display = 'block';
+                document.getElementById('hint-text').textContent = data.hint;
+            } else {
+                document.getElementById('hint-content').style.display = 'none';
+                document.getElementById('hint-success').style.display = 'none';
+                document.getElementById('hint-empty').style.display = 'block';
+            }
+        }
+
+        function showFlow(mermaidCode) {
+            document.getElementById('flow-loading').style.display = 'none';
+            const container = document.getElementById('mermaid-container');
+            container.style.display = 'block';
+            container.textContent = mermaidCode;
+        }
+    </script>
+
+</body>
+</html>
