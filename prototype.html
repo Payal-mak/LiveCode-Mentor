@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Stage 1 — IDE View</title>
+<title>Stage 2 — Add Code Flow</title>
 <style>
 body { margin:0; font-family:sans-serif; background:#0d1117; color:white; }
 
@@ -10,51 +10,74 @@ body { margin:0; font-family:sans-serif; background:#0d1117; color:white; }
   padding:10px;
   background:#161b22;
   display:flex;
-  justify-content:space-between;
+  gap:10px;
 }
 
-.main {
-  display:flex;
-  height:90vh;
-}
+.screen { display:none; }
+.active { display:block; }
 
-.editor {
-  flex:1;
-  background:black;
-  padding:20px;
-}
+.main { display:flex; height:90vh; }
 
-.sidebar {
-  width:250px;
-  background:#1f2428;
-  padding:20px;
+.editor { flex:1; background:black; padding:20px; }
+.sidebar { width:250px; background:#1f2428; padding:20px; }
+
+.flow { padding:40px; }
+.node {
+  padding:10px;
+  margin:10px;
+  border:1px solid white;
+  width:150px;
+  text-align:center;
 }
-button { margin-top:10px; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div>LiveCode Mentor</div>
+  <button onclick="showScreen(1)">IDE</button>
+  <button onclick="showScreen(2)">Flow</button>
 </div>
 
-<div id="screen1" class="main">
-  <div class="editor">
+<!-- SCREEN 1 -->
+<div id="screen1" class="screen active">
+  <div class="main">
+    <div class="editor">
 <pre>
 for(int i = 0; i < n; i++){
     sum += arr[i];
 }
 </pre>
-  </div>
+    </div>
 
-  <div class="sidebar">
-    <h3>AI Mentor</h3>
-    <p>Loop detected</p>
-
-    <!-- This button won't work yet -->
-    <button>Go to Flow</button>
+    <div class="sidebar">
+      <h3>AI Mentor</h3>
+      <p>Loop detected</p>
+      <button onclick="showScreen(2)">Go to Flow</button>
+    </div>
   </div>
 </div>
+
+<!-- SCREEN 2 -->
+<div id="screen2" class="screen">
+  <div class="flow">
+    <h2>Code Flow</h2>
+
+    <div class="node">Start</div>
+    <div class="node">Initialize</div>
+    <div class="node">Loop</div>
+    <div class="node">Condition</div>
+    <div class="node">End</div>
+
+    <button onclick="showScreen(1)">Back</button>
+  </div>
+</div>
+
+<script>
+function showScreen(n){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen' + n).classList.add('active');
+}
+</script>
 
 </body>
 </html>
