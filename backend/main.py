@@ -319,3 +319,37 @@ async def check_fix(payload: CodePayload):
         return {"fixed": True, "message": "Great job! The issue is resolved! 🎉"}
     else:
         return {"fixed": False, "message": "Not quite yet — check the hint again!"}
+    
+    # FR6: Generate Mermaid.js flow diagram
+@app.post("/flow")
+async def generate_flow(payload: CodePayload):
+    print(f"[LiveCode Mentor] Generating flow diagram...")
+
+    prompt = f"""Convert this {payload.language} code into a Mermaid.js flowchart.
+
+Rules:
+- Use flowchart TD direction
+- Start with a Start node and end with an End node
+- Show variable initialization, loops with conditions, function calls, return statements
+- Keep node labels short — max 4 words each
+- Use proper Mermaid.js syntax
+- For loops use: loopCondition{{condition}} with Yes/No paths
+- Return ONLY the raw Mermaid code, no backticks, no explanation
+
+Code:
+{payload.code}"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=400,
+        temperature=0.2
+    )
+
+    mermaid_code = response.choices[0].message.content.strip()
+
+    # Clean up any backticks if model added them
+    mermaid_code = mermaid_code.replace("```mermaid", "").replace("```", "").strip()
+    print(f"[LiveCode Mentor] Mermaid code: {mermaid_code}")
+
+    return {"mermaid": mermaid_code}
