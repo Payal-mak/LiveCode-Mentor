@@ -5,17 +5,17 @@ import { SidebarProvider } from './SidebarProvider';
 const BACKEND_URL = 'http://localhost:8000';
 let debounceTimer: ReturnType<typeof setTimeout>;
 let sidebarProvider: SidebarProvider;
+let lastMistake: { type: string; description: string } | null = null;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('LiveCode Mentor is now active!');
 
-    // Register sidebar
     sidebarProvider = new SidebarProvider(context.extensionUri);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider('livecodeMentor', sidebarProvider)
     );
 
-    // Register commands
+    // Generate flow command
     context.subscriptions.push(
         vscode.commands.registerCommand('livecode-mentor.generateFlow', () => {
             const editor = vscode.window.activeTextEditor;
@@ -23,10 +23,26 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // FR11: Check fix command
     context.subscriptions.push(
-        vscode.commands.registerCommand('livecode-mentor.checkFix', () => {
+        vscode.commands.registerCommand('livecode-mentor.checkFix', async () => {
             const editor = vscode.window.activeTextEditor;
-            if (editor) { sendCodeToBackend(editor.document, 'checkfix'); }
+            if (!editor) { return; }
+            try {
+                const res = await axios.post(`${BACKEND_URL}/check-fix`, {
+                    code: editor.document.getText(),
+                    language: editor.document.languageId
+                });
+                if (res.data.fixed) {
+                    lastMistake = null;
+                    sidebarProvider.sendMessage('hint', { has_mistake: false });
+                    vscode.window.showInformationMessage('Great job! Issue resolved! 🎉');
+                } else {
+                    vscode.window.showWarningMessage('Not quite — check the hint again!');
+                }
+            } catch (e) {
+                console.error(e);
+            }
         })
     );
 
@@ -70,8 +86,23 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
         const res = await axios.post(`${BACKEND_URL}/analyze`, {
             code, language, trigger
         });
-        // Send result to sidebar
+
+        // Update explanation tab
         sidebarProvider.sendMessage('explanation', res.data);
+
+        // FR10: If mistake detected, get hint
+        if (res.data.mistake && res.data.mistake.has_mistake) {
+            lastMistake = res.data.mistake.mistake;
+            const hintRes = await axios.post(`${BACKEND_URL}/hint`, {
+                code,
+                language,
+                mistake_type: res.data.mistake.mistake.description
+            });
+            sidebarProvider.sendMessage('hint', hintRes.data);
+        } else {
+            sidebarProvider.sendMessage('hint', { has_mistake: false });
+        }
+
         console.log('[LiveCode Mentor] Sidebar updated!');
     } catch (e) {
         console.error('[LiveCode Mentor] Backend error:', e);
