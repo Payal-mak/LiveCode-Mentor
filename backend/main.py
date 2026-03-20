@@ -20,6 +20,8 @@ app.add_middleware(
 class CodePayload(BaseModel):
     code: str
     language: str = "python"
+    fileName: str = ""
+    trigger: str = "change"
 
 @app.get("/health")
 def health():
@@ -27,9 +29,11 @@ def health():
 
 @app.post("/analyze")
 async def analyze(payload: CodePayload):
+    print(f"[LiveCode Mentor] Received code ({payload.trigger}) - {len(payload.code)} chars - {payload.language}")
     return {
         "status": "ok",
         "language": payload.language,
+        "trigger": payload.trigger,
         "code_length": len(payload.code),
-        "message": "Backend connected! AI coming in Hour 4."
+        "message": f"Code received! ({len(payload.code)} chars, trigger: {payload.trigger})"
     }
