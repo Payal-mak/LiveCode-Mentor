@@ -82,6 +82,19 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
 
     console.log(`[LiveCode Mentor] Sending code (trigger: ${trigger})`);
 
+    // FR6: Handle flow diagram separately
+    if (trigger === 'flow') {
+        try {
+            const res = await axios.post(`${BACKEND_URL}/flow`, {
+                code, language, trigger
+            });
+            sidebarProvider.sendMessage('flow', res.data.mermaid);
+        } catch (e) {
+            console.error('[LiveCode Mentor] Flow error:', e);
+        }
+        return;
+    }
+
     try {
         const res = await axios.post(`${BACKEND_URL}/analyze`, {
             code, language, trigger
