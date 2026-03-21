@@ -358,6 +358,30 @@
             color: #ffd93d;
             font-weight: 600;
         }
+
+        /* Stepper variable pills */
+        .var-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-family: monospace;
+            padding: 3px 8px;
+            background: rgba(124,111,247,0.12);
+            border: 1px solid rgba(124,111,247,0.3);
+            border-radius: 4px;
+            margin: 3px 3px 3px 0;
+            color: var(--vscode-foreground);
+        }
+
+        .var-name {
+            color: #7c6ff7;
+            font-weight: 600;
+        }
+
+        .var-value {
+            color: #6bcb77;
+        }
     </style>
 </head>
 <body>
@@ -427,14 +451,60 @@
 
         <!-- FLOW TAB -->
         <div class="tab-panel" id="panel-flow">
-            <button class="show-flow-btn" onclick="requestFlow()">
-                🔀 Generate Code Flow Diagram
-            </button>
+
+            <!-- Action buttons -->
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button class="show-flow-btn" style="flex:1;" onclick="requestFlow()">
+                    🔀 Generate Flow Diagram
+                </button>
+                <button class="show-flow-btn" style="flex:1;" onclick="requestTrace()">
+                    👣 Step Through Code
+                </button>
+            </div>
+
+            <!-- Loading -->
             <div class="loading" id="flow-loading" style="display:none;">
                 <div class="spinner"></div>
-                <div class="loading-text">Generating flow diagram...</div>
+                <div class="loading-text" id="flow-loading-text">Generating...</div>
             </div>
+
+            <!-- Flow diagram output -->
             <div id="mermaid-container" style="display:none;"></div>
+
+            <!-- Stepper output -->
+            <div id="stepper-container" style="display:none;">
+
+                <!-- Step counter + controls -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);" id="step-counter">Step 1 of 1</div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-primary" style="width:auto;padding:4px 12px;margin:0;" onclick="prevStep()">← Prev</button>
+                        <button class="btn btn-primary" style="width:auto;padding:4px 12px;margin:0;" onclick="nextStep()">Next →</button>
+                    </div>
+                </div>
+
+                <!-- Current line -->
+                <div class="card" style="margin-bottom:8px;">
+                    <div class="card-title blue">📍 Current Line</div>
+                    <div style="font-family:monospace;font-size:13px;color:var(--vscode-foreground);margin-top:4px;" id="step-line">—</div>
+                </div>
+
+                <!-- Variables -->
+                <div class="card" style="margin-bottom:8px;">
+                    <div class="card-title green">📦 Variables</div>
+                    <div id="step-vars" style="margin-top:6px;">
+                        <div style="font-size:12px;color:var(--vscode-descriptionForeground);">No variables yet</div>
+                    </div>
+                </div>
+
+                <!-- Output so far -->
+                <div class="card" id="output-card" style="display:none;">
+                    <div class="card-title amber">🖨️ Output</div>
+                    <div style="font-family:monospace;font-size:11px;color:var(--vscode-foreground);margin-top:4px;white-space:pre-wrap;" id="step-output"></div>
+                </div>
+
+            </div>
+
         </div>
         <!-- PROGRESS TAB -->
         <div class="tab-panel" id="panel-progress">
@@ -653,6 +723,8 @@
                 showLoading();
             } else if (message.type === 'recommendations') {
                 showRecommendations(message.data);
+            }else if (message.type === 'trace') {
+                showTrace(message.data);
             }
         });
 
@@ -708,6 +780,90 @@
 
         function openLink(url) {
             vscode.postMessage({ type: 'openLink', url: url });
+        }
+
+        // FR7: Execution trace stepper
+        let traceSteps = [];
+        let currentStep = 0;
+        let codeLines = [];
+
+        function requestTrace() {
+            document.getElementById('flow-loading').style.display = 'flex';
+            document.getElementById('flow-loading-text').textContent = 'Running code trace...';
+            document.getElementById('mermaid-container').style.display = 'none';
+            document.getElementById('stepper-container').style.display = 'none';
+            vscode.postMessage({ type: 'requestTrace' });
+        }
+
+        function showTrace(data) {
+            document.getElementById('flow-loading').style.display = 'none';
+
+            if (!data.success || data.steps.length === 0) {
+                document.getElementById('mermaid-container').style.display = 'block';
+                document.getElementById('mermaid-container').innerHTML =
+                    '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">' +
+                    '⚠️ ' + (data.error || 'No steps to trace. Make sure your code runs without errors.') +
+                    '</div>';
+                return;
+            }
+
+            traceSteps = data.steps;
+            currentStep = 0;
+
+            // Store output
+            window.traceOutput = data.output || '';
+
+            document.getElementById('stepper-container').style.display = 'block';
+            renderStep(currentStep);
+
+            // Switch to flow tab
+            switchTab('flow');
+        }
+
+        function renderStep(index) {
+            const step = traceSteps[index];
+            if (!step) { return; }
+
+            // Update counter
+            document.getElementById('step-counter').textContent =
+                `Step ${index + 1} of ${traceSteps.length}`;
+
+            // Update line
+            document.getElementById('step-line').textContent =
+                `Line ${step.line}`;
+
+            // Update variables
+            const varsEl = document.getElementById('step-vars');
+            const vars = step.vars;
+            if (Object.keys(vars).length === 0) {
+                varsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No variables yet</div>';
+            } else {
+                varsEl.innerHTML = Object.entries(vars).map(([k, v]) =>
+                    `<span class="var-pill"><span class="var-name">${k}</span>=<span class="var-value">${v}</span></span>`
+                ).join('');
+            }
+
+            // Show output on last step
+            if (index === traceSteps.length - 1 && window.traceOutput) {
+                document.getElementById('output-card').style.display = 'block';
+                document.getElementById('step-output').textContent = window.traceOutput;
+            } else {
+                document.getElementById('output-card').style.display = 'none';
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < traceSteps.length - 1) {
+                currentStep++;
+                renderStep(currentStep);
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                renderStep(currentStep);
+            }
         }
     </script>
 

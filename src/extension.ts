@@ -23,6 +23,22 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    context.subscriptions.push(
+        vscode.commands.registerCommand('livecode-mentor.generateTrace', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) { return; }
+            try {
+                const res = await axios.post(`${BACKEND_URL}/trace`, {
+                    code: editor.document.getText(),
+                    language: editor.document.languageId
+                });
+                sidebarProvider.sendMessage('trace', res.data);
+            } catch (e) {
+                console.error('[LiveCode Mentor] Trace error:', e);
+            }
+        })
+    );
+
     // FR11: Check fix command
     context.subscriptions.push(
         vscode.commands.registerCommand('livecode-mentor.checkFix', async () => {
