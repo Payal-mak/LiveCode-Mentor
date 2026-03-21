@@ -211,35 +211,35 @@ Be encouraging and simple. No technical jargon."""
     return response.choices[0].message.content.strip()
 
 async def get_explanation(code: str, language: str, concepts: list) -> dict:
-
-    # FR13: Get experience level from learner history
     level = get_experience_level(concepts)
     print(f"[LiveCode Mentor] Experience level: {level}")
 
-    # Adapt prompt based on experience level
     if level == "beginner":
         style = """Explain this like the student has never coded before.
-Use a simple real-world analogy to explain what the code does.
-Write 3 sentences maximum. Avoid ALL technical jargon."""
-
+Use a simple real-world analogy. 3 sentences max.
+Avoid ALL technical jargon."""
     elif level == "intermediate":
         style = """Explain this to someone who understands basic programming.
-Be clear and concise. 2 sentences maximum.
-You can use basic technical terms like loop, function, variable."""
-
-    else:  # expert
-        style = """Give a single concise technical sentence summarizing what this code does.
-Assume expert-level Python knowledge. Be brief and precise."""
+Be clear and concise. 2 sentences maximum."""
+    else:
+        style = """Give a concise 1-sentence technical summary.
+Assume expert-level Python knowledge."""
 
     prompt = f"""You are LiveCode Mentor, a coding tutor.
 {style}
 
 Analyze this {language} code and return ONLY a JSON object:
-- "explanation": your explanation based on the style above
+- "explanation": your explanation
 - "concepts": {json.dumps(concepts)}
 - "has_error": false
 - "friendly_error": null
 - "level": "{level}"
+- "time_complexity": Big O time complexity (e.g. "O(n)", "O(n²)", "O(1)") with a one-line reason
+- "space_complexity": Big O space complexity (e.g. "O(1)", "O(n)") with a one-line reason
+
+For complexity fields use this format:
+"time_complexity": {{"notation": "O(n)", "reason": "Single loop iterates n times"}}
+"space_complexity": {{"notation": "O(1)", "reason": "Only stores a few variables"}}
 
 Code:
 ```{language}
@@ -251,7 +251,7 @@ Return ONLY valid JSON, no markdown, no backticks, nothing else."""
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=500,
+        max_tokens=600,
         temperature=0.3
     )
 
@@ -266,7 +266,9 @@ Return ONLY valid JSON, no markdown, no backticks, nothing else."""
             "concepts": concepts,
             "has_error": False,
             "friendly_error": None,
-            "level": level
+            "level": level,
+            "time_complexity": None,
+            "space_complexity": None
         }
 
 @app.get("/health")
@@ -412,43 +414,140 @@ async def get_recommendations(payload: CodePayload):
 
     print(f"[LiveCode Mentor] Generating recommendations for: {concepts}")
 
-    prompt = f"""Based on these programming concepts: {json.dumps(concepts)}
+    # Use AST to extract deeper context
+    try:
+        tree = ast.parse(payload.code)
+    except:
+        tree = None
 
-Return ONLY a JSON object with exactly this structure:
+    functions = []
+    has_recursion = False
+    has_sorting = False
+    has_searching = False
+    has_class = False
+    has_nested_loops = False
+    algorithm_hints = []
+
+    if tree:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                functions.append(node.name)
+                # Check for recursion
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Call):
+                        if isinstance(child.func, ast.Name):
+                            if child.func.id == node.name:
+                                has_recursion = True
+            if isinstance(node, ast.ClassDef):
+                has_class = True
+            if isinstance(node, ast.For):
+                # Check for nested loops
+                for child in ast.walk(node):
+                    if isinstance(child, ast.For) and child is not node:
+                        has_nested_loops = True
+
+        # Check function names for algorithm hints
+        all_names = [n.id for n in ast.walk(tree) if isinstance(n, ast.Name)]
+        name_str = " ".join(all_names + functions).lower()
+        if any(w in name_str for w in ["sort", "bubble", "merge", "quick", "insertion"]):
+            has_sorting = True
+            algorithm_hints.append("sorting algorithm")
+        if any(w in name_str for w in ["search", "find", "binary", "linear"]):
+            has_searching = True
+            algorithm_hints.append("searching algorithm")
+        if any(w in name_str for w in ["factorial", "fibonacci", "fib", "power", "hanoi"]):
+            algorithm_hints.append("mathematical recursion")
+        if any(w in name_str for w in ["stack", "queue", "linked", "tree", "graph", "node"]):
+            algorithm_hints.append("data structure")
+        if any(w in name_str for w in ["dp", "memo", "cache", "dynamic"]):
+            algorithm_hints.append("dynamic programming")
+        if any(w in name_str for w in ["matrix", "grid", "row", "col"]):
+            algorithm_hints.append("matrix/grid problem")
+
+    # Build rich context
+    context_lines = []
+    context_lines.append(f"Programming concepts used: {', '.join(concepts)}")
+    if functions:
+        context_lines.append(f"Functions defined: {', '.join(functions)}")
+    if has_recursion:
+        context_lines.append("Uses recursion")
+    if has_nested_loops:
+        context_lines.append("Has nested loops — O(n²) pattern")
+    if has_class:
+        context_lines.append("Uses object-oriented programming")
+    if algorithm_hints:
+        context_lines.append(f"Algorithm type: {', '.join(algorithm_hints)}")
+
+    context = "\n".join(context_lines)
+
+    prompt = f"""You are a coding mentor recommending practice problems and learning resources.
+
+Here is the student's code:
+```python
+{payload.code}
+```
+
+Code analysis:
+{context}
+
+Based on EXACTLY what this student is practicing, recommend:
+1. Two LeetCode problems that directly practice the SAME concepts
+2. One high-quality article or documentation page to learn more
+
+RULES for LeetCode problems:
+- Must be directly related to concepts in THIS specific code
+- If code uses recursion → recommend recursion problems
+- If code uses sorting → recommend sorting problems  
+- If code uses nested loops → recommend array/matrix problems
+- If code uses OOP → recommend OOP design problems
+- If code uses dynamic programming → recommend DP problems
+- If code uses linked list/tree/graph → recommend those data structure problems
+- Difficulty: Easy or Medium only (student is learning)
+- Use REAL LeetCode problem titles and their actual URLs
+
+RULES for article:
+- Must be directly relevant to the main concept in this code
+- Prefer: realpython.com, docs.python.org, geeksforgeeks.org, programiz.com
+- Title must describe exactly what the article teaches
+
+Return ONLY this JSON structure:
 {{
   "leetcode": [
     {{
-      "title": "Two Sum",
+      "title": "exact leetcode problem title",
       "difficulty": "Easy",
-      "url": "https://leetcode.com/problems/two-sum/"
+      "url": "https://leetcode.com/problems/exact-slug/"
     }},
     {{
-      "title": "Running Sum of 1d Array",
-      "difficulty": "Easy",
-      "url": "https://leetcode.com/problems/running-sum-of-1d-array/"
+      "title": "exact leetcode problem title",
+      "difficulty": "Medium",
+      "url": "https://leetcode.com/problems/exact-slug/"
     }}
   ],
   "article": {{
-    "title": "Understanding For Loops in Python",
-    "url": "https://realpython.com/python-for-loop/"
+    "title": "exact article title",
+    "url": "https://exact-article-url.com"
   }}
 }}
 
-Pick problems and articles that are relevant to: {", ".join(concepts[:3])}
-Difficulty should be Easy or Medium only (beginner friendly).
-Return ONLY valid JSON, no markdown, no backticks."""
+Return ONLY valid JSON. No markdown. No explanation."""
 
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=400,
-            temperature=0.3
+            max_tokens=500,
+            temperature=0.2
         )
         raw = response.choices[0].message.content.strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
         print(f"[LiveCode Mentor] Recommendations: {raw}")
         result = json.loads(raw)
         return result
+
+    except json.JSONDecodeError as e:
+        print(f"[LiveCode Mentor] Recommendations JSON error: {e}")
+        return {"leetcode": [], "article": None}
     except Exception as e:
         print(f"[LiveCode Mentor] Recommendations error: {e}")
         return {"leetcode": [], "article": None}
@@ -464,3 +563,118 @@ async def get_trace(payload: CodePayload):
     result = trace_code(payload.code, max_steps=30)
     print(f"[LiveCode Mentor] Trace: {result['total_steps'] if result['success'] else 0} steps")
     return result
+
+# FR8: Auto test input generation + execution
+@app.post("/auto-test")
+async def auto_test(payload: CodePayload):
+    if payload.language != "python":
+        return {"tests": [], "error": "Only Python supported"}
+
+    print(f"[LiveCode Mentor] Generating auto tests...")
+
+    # Use AST to understand what's in the code
+    try:
+        tree = ast.parse(payload.code)
+    except SyntaxError as e:
+        return {"tests": [], "error": f"Syntax error: {e.msg}"}
+
+    # Extract functions, classes, and top-level variables
+    functions = []
+    variables = []
+    classes = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            args = [a.arg for a in node.args.args]
+            functions.append({"name": node.name, "args": args})
+        elif isinstance(node, ast.ClassDef):
+            classes.append(node.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    variables.append(target.id)
+
+    # Build context string for Groq
+    context_parts = []
+    if functions:
+        for f in functions:
+            context_parts.append(f"Function: {f['name']}({', '.join(f['args'])})")
+    if classes:
+        context_parts.append(f"Classes: {', '.join(classes)}")
+    if variables:
+        context_parts.append(f"Variables defined: {', '.join(set(variables))}")
+
+    context = "\n".join(context_parts) if context_parts else "No functions or classes — just statements"
+
+    prompt = f"""You are a Python testing assistant.
+
+Here is the code to test:
+```python
+{payload.code}
+```
+
+Code structure detected:
+{context}
+
+Your job: Generate exactly 3 test lines that will be APPENDED to the end of this code.
+
+STRICT RULES — read carefully:
+1. Each test line is ONE single Python print() statement
+2. It will run AFTER the code above, so all variables/functions are already defined
+3. Use ONLY names that actually exist in the code above
+4. Do NOT redeclare variables, do NOT rewrite the code
+5. Do NOT use semicolons
+6. Do NOT write multi-line code in a single test
+
+Examples of GOOD tests depending on code type:
+- If code defines function add(a,b): print(add(2, 3))
+- If code defines variable total: print(total)
+- If code defines list arr: print(len(arr))
+- If code defines class Dog: print(Dog())
+- If code just runs loops: print("Done")
+
+Return ONLY this JSON format:
+{{
+  "tests": [
+    {{"input_code": "print(something)", "description": "short description"}},
+    {{"input_code": "print(something_else)", "description": "short description"}},
+    {{"input_code": "print(another_thing)", "description": "short description"}}
+  ]
+}}
+
+Return ONLY valid JSON. No markdown. No explanation."""
+
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400,
+            temperature=0.1
+        )
+        raw = response.choices[0].message.content.strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        test_data = json.loads(raw)
+
+        # Run each test safely
+        results = []
+        for test in test_data.get("tests", []):
+            # Append test line to original code
+            full_code = payload.code.rstrip() + "\n" + test["input_code"]
+            trace_result = trace_code(full_code, max_steps=100)
+            results.append({
+                "description": test["description"],
+                "input_code": test["input_code"],
+                "output": trace_result.get("output", "").strip(),
+                "success": trace_result["success"],
+                "error": trace_result.get("error", None)
+            })
+
+        print(f"[LiveCode Mentor] Auto tests done: {len(results)} ran")
+        return {"tests": results}
+
+    except json.JSONDecodeError as e:
+        print(f"[LiveCode Mentor] JSON parse error: {e}")
+        return {"tests": [], "error": "Could not parse test cases"}
+    except Exception as e:
+        print(f"[LiveCode Mentor] Auto test error: {e}")
+        return {"tests": [], "error": str(e)}

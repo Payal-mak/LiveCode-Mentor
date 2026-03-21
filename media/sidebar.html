@@ -382,6 +382,86 @@
         .var-value {
             color: #6bcb77;
         }
+
+        /* Complexity badges */
+        .complexity-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .complexity-badge {
+            flex: 1;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--vscode-panel-border);
+            background: var(--vscode-editor-background);
+        }
+
+        .complexity-notation {
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: 700;
+            color: #4ecdc4;
+            line-height: 1;
+        }
+
+        .complexity-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 3px;
+        }
+
+        .complexity-reason {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        /* Auto test results */
+        .test-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .test-status {
+            font-size: 13px;
+            min-width: 18px;
+        }
+
+        .test-content { flex: 1; }
+
+        .test-input {
+            font-family: monospace;
+            color: var(--vscode-foreground);
+            margin-bottom: 3px;
+        }
+
+        .test-output {
+            font-family: monospace;
+            color: #6bcb77;
+        }
+
+        .test-desc {
+            color: var(--vscode-descriptionForeground);
+            font-size: 10px;
+            margin-bottom: 3px;
+        }
+
+        .test-error {
+            color: #ff6b6b;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -414,6 +494,28 @@
                     <span id="level-badge" style="display:none;font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;"></span>
                 </div>
                 <div class="card-body" id="explanation-text"></div>
+            </div>
+            <!-- Complexity card -->
+            <div class="card" id="complexity-card" style="display:none;">
+                <div class="card-title" style="color:#4ecdc4;">⚡ Complexity Analysis</div>
+                <div class="complexity-row">
+                    <div class="complexity-badge">
+                        <div class="complexity-notation" id="time-notation">—</div>
+                        <div class="complexity-label">Time</div>
+                        <div class="complexity-reason" id="time-reason"></div>
+                    </div>
+                    <div class="complexity-badge">
+                        <div class="complexity-notation" id="space-notation">—</div>
+                        <div class="complexity-label">Space</div>
+                        <div class="complexity-reason" id="space-reason"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto test results -->
+            <div class="card" id="autotest-card" style="display:none;">
+                <div class="card-title amber">🧪 Auto Test Results</div>
+                <div id="autotest-content" style="margin-top:8px;"></div>
             </div>
                 <div class="card" id="concepts-card" style="display:none;">
                     <div class="card-title green">🧠 Concepts detected</div>
@@ -581,51 +683,66 @@
         }
 
         function showExplanation(data) {
-            document.getElementById('explanation-loading').style.display = 'none';
-            document.getElementById('explanation-content').style.display = 'block';
-            document.getElementById('explanation-text').textContent = data.explanation || 'Analysing...';
+        document.getElementById('explanation-loading').style.display = 'none';
+        document.getElementById('explanation-content').style.display = 'block';
+        document.getElementById('explanation-text').textContent = data.explanation || 'Analysing...';
 
-            // FR13: Show experience level badge
-            const badge = document.getElementById('level-badge');
-            if (data.level) {
-                badge.style.display = 'inline-block';
-                if (data.level === 'beginner') {
-                    badge.textContent = '🌱 Beginner';
-                    badge.style.background = 'rgba(107,203,119,0.15)';
-                    badge.style.color = '#6bcb77';
-                    badge.style.border = '1px solid rgba(107,203,119,0.3)';
-                } else if (data.level === 'intermediate') {
-                    badge.textContent = '⚡ Intermediate';
-                    badge.style.background = 'rgba(255,217,61,0.15)';
-                    badge.style.color = '#ffd93d';
-                    badge.style.border = '1px solid rgba(255,217,61,0.3)';
-                } else {
-                    badge.textContent = '🚀 Expert';
-                    badge.style.background = 'rgba(124,111,247,0.15)';
-                    badge.style.color = '#7c6ff7';
-                    badge.style.border = '1px solid rgba(124,111,247,0.3)';
-                }
-            }
-
-            // Show concepts if any
-            if (data.concepts && data.concepts.length > 0) {
-                document.getElementById('concepts-card').style.display = 'block';
-                const list = document.getElementById('concepts-list');
-                list.innerHTML = data.concepts.map(c =>
-                    '<span class="concept-pill">' + c + '</span>'
-                ).join('');
+        // FR13: Level badge
+        const badge = document.getElementById('level-badge');
+        if (data.level) {
+            badge.style.display = 'inline-block';
+            if (data.level === 'beginner') {
+                badge.textContent = '🌱 Beginner';
+                badge.style.background = 'rgba(107,203,119,0.15)';
+                badge.style.color = '#6bcb77';
+                badge.style.border = '1px solid rgba(107,203,119,0.3)';
+            } else if (data.level === 'intermediate') {
+                badge.textContent = '⚡ Intermediate';
+                badge.style.background = 'rgba(255,217,61,0.15)';
+                badge.style.color = '#ffd93d';
+                badge.style.border = '1px solid rgba(255,217,61,0.3)';
             } else {
-                document.getElementById('concepts-card').style.display = 'none';
-            }
-
-            // Show error if any
-            if (data.friendly_error) {
-                document.getElementById('error-card').style.display = 'block';
-                document.getElementById('error-text').textContent = data.friendly_error;
-            } else {
-                document.getElementById('error-card').style.display = 'none';
+                badge.textContent = '🚀 Expert';
+                badge.style.background = 'rgba(124,111,247,0.15)';
+                badge.style.color = '#7c6ff7';
+                badge.style.border = '1px solid rgba(124,111,247,0.3)';
             }
         }
+
+        // Concepts
+        if (data.concepts && data.concepts.length > 0) {
+            document.getElementById('concepts-card').style.display = 'block';
+            const list = document.getElementById('concepts-list');
+            list.innerHTML = data.concepts.map(c =>
+                '<span class="concept-pill">' + c + '</span>'
+            ).join('');
+        } else {
+            document.getElementById('concepts-card').style.display = 'none';
+        }
+
+        // Error
+        if (data.friendly_error) {
+            document.getElementById('error-card').style.display = 'block';
+            document.getElementById('error-text').textContent = data.friendly_error;
+        } else {
+            document.getElementById('error-card').style.display = 'none';
+        }
+
+        // Bonus: Complexity
+        if (data.time_complexity && data.space_complexity) {
+            document.getElementById('complexity-card').style.display = 'block';
+            document.getElementById('time-notation').textContent =
+                data.time_complexity.notation || '—';
+            document.getElementById('time-reason').textContent =
+                data.time_complexity.reason || '';
+            document.getElementById('space-notation').textContent =
+                data.space_complexity.notation || '—';
+            document.getElementById('space-reason').textContent =
+                data.space_complexity.reason || '';
+        } else {
+            document.getElementById('complexity-card').style.display = 'none';
+        }
+    }
 
         function showHint(data) {
             if (data && data.has_mistake) {
@@ -725,9 +842,38 @@
                 showRecommendations(message.data);
             }else if (message.type === 'trace') {
                 showTrace(message.data);
+            } else if (message.type === 'autotest') {
+                showAutoTests(message.data);
             }
         });
 
+            function showAutoTests(data) {
+                const card = document.getElementById('autotest-card');
+                const content = document.getElementById('autotest-content');
+
+            if (!data.tests || data.tests.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            content.innerHTML = data.tests.map(test => `
+                <div class="test-row">
+                    <div class="test-status">${test.success ? '✅' : '❌'}</div>
+                    <div class="test-content">
+                        <div class="test-desc">${test.description}</div>
+                        <div class="test-input">▶ ${test.input_code}</div>
+                        ${test.output
+                            ? `<div class="test-output">→ ${test.output}</div>`
+                            : test.error
+                            ? `<div class="test-error">⚠ ${test.error}</div>`
+                            : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+    
         function showRecommendations(data) {
             const card = document.getElementById('resources-card');
             const content = document.getElementById('resources-content');

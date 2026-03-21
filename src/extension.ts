@@ -118,6 +118,18 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
             }
         }
 
+        // FR8: Auto test on save
+        if (trigger === 'save' && !res.data.has_error) {
+            try {
+                const testRes = await axios.post(`${BACKEND_URL}/auto-test`, {
+                    code, language, trigger
+                });
+                sidebarProvider.sendMessage('autotest', testRes.data);
+            } catch (e) {
+                console.error('[LiveCode Mentor] Auto test error:', e);
+            }
+        }
+
         // FR10: If mistake detected, get hint
         if (res.data.mistake && res.data.mistake.has_mistake) {
             lastMistake = res.data.mistake.mistake;
