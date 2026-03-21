@@ -1,4 +1,5 @@
 from database import init_db, save_concepts, save_mistake, get_stats, get_experience_level, log_session
+from tracer import trace_code
 
 # Initialize DB on startup
 init_db()
@@ -451,3 +452,15 @@ Return ONLY valid JSON, no markdown, no backticks."""
     except Exception as e:
         print(f"[LiveCode Mentor] Recommendations error: {e}")
         return {"leetcode": [], "article": None}
+    
+    # FR7: Execution trace with variable values
+@app.post("/trace")
+async def get_trace(payload: CodePayload):
+    print(f"[LiveCode Mentor] Running execution trace...")
+
+    if payload.language != "python":
+        return {"success": False, "error": "Tracing only supported for Python", "steps": []}
+
+    result = trace_code(payload.code, max_steps=30)
+    print(f"[LiveCode Mentor] Trace: {result['total_steps'] if result['success'] else 0} steps")
+    return result
