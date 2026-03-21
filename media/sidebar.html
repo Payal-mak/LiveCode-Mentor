@@ -969,19 +969,20 @@
         function renderStep(index) {
             const step = traceSteps[index];
             if (!step) { return; }
-
-            // Update counter
+        
             document.getElementById('step-counter').textContent =
                 `Step ${index + 1} of ${traceSteps.length}`;
 
-            // Update line
-            document.getElementById('step-line').textContent =
-                `Line ${step.line}`;
+            // Show line number AND actual code content
+            const lineContent = step.line_content || '';
+            document.getElementById('step-line').innerHTML =
+                `<span style="color:var(--vscode-descriptionForeground);font-size:10px;">Line ${step.line}</span><br>` +
+                `<span style="font-family:monospace;font-size:12px;">${lineContent}</span>`;
 
-            // Update variables
+            // Variables
             const varsEl = document.getElementById('step-vars');
             const vars = step.vars;
-            if (Object.keys(vars).length === 0) {
+            if (!vars || Object.keys(vars).length === 0) {
                 varsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No variables yet</div>';
             } else {
                 varsEl.innerHTML = Object.entries(vars).map(([k, v]) =>

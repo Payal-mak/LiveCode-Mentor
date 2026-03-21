@@ -560,8 +560,47 @@ async def get_trace(payload: CodePayload):
     if payload.language != "python":
         return {"success": False, "error": "Tracing only supported for Python", "steps": []}
 
-    result = trace_code(payload.code, max_steps=30)
-    print(f"[LiveCode Mentor] Trace: {result['total_steps'] if result['success'] else 0} steps")
+    # Detect if code uses input() and generate smart mock values
+    mock_inputs = ["5", "1 2 3 4 5", "3", "1 2 3", "10", "hello", "0"]
+
+    try:
+        tree = ast.parse(payload.code)
+        has_input = any(
+            isinstance(node, ast.Call) and
+            isinstance(node.func, ast.Name) and
+            node.func.id == 'input'
+            for node in ast.walk(tree)
+        )
+
+        if has_input:
+            # Ask Groq for smart mock inputs
+            prompt = f"""This Python code uses input(). Generate realistic mock input values.
+Code:
+{payload.code}
+
+Return ONLY a JSON array of strings that would be valid inputs, in order:
+["5", "1 2 3 4 5"]
+
+Return ONLY the JSON array, nothing else."""
+            try:
+                response = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=100,
+                    temperature=0.1
+                )
+                raw = response.choices[0].message.content.strip()
+                raw = raw.replace("```json", "").replace("```", "").strip()
+                mock_inputs = json.loads(raw)
+                print(f"[LiveCode Mentor] Mock inputs: {mock_inputs}")
+            except:
+                mock_inputs = ["5", "1 2 3 4 5", "3", "1 2 3"]
+
+    except:
+        pass
+
+    result = trace_code(payload.code, max_steps=50, mock_inputs=mock_inputs)
+    print(f"[LiveCode Mentor] Trace: {result['total_steps']} steps, success: {result['success']}")
     return result
 
 # FR8: Auto test input generation + execution
