@@ -210,19 +210,41 @@ Be encouraging and simple. No technical jargon."""
     return response.choices[0].message.content.strip()
 
 async def get_explanation(code: str, language: str, concepts: list) -> dict:
-    prompt = f"""You are LiveCode Mentor, a friendly coding tutor for beginners.
-Analyze this {language} code and return ONLY a JSON object with these exact fields:
-- "explanation": 2-3 simple sentences explaining what this code does in plain English
+
+    # FR13: Get experience level from learner history
+    level = get_experience_level(concepts)
+    print(f"[LiveCode Mentor] Experience level: {level}")
+
+    # Adapt prompt based on experience level
+    if level == "beginner":
+        style = """Explain this like the student has never coded before.
+Use a simple real-world analogy to explain what the code does.
+Write 3 sentences maximum. Avoid ALL technical jargon."""
+
+    elif level == "intermediate":
+        style = """Explain this to someone who understands basic programming.
+Be clear and concise. 2 sentences maximum.
+You can use basic technical terms like loop, function, variable."""
+
+    else:  # expert
+        style = """Give a single concise technical sentence summarizing what this code does.
+Assume expert-level Python knowledge. Be brief and precise."""
+
+    prompt = f"""You are LiveCode Mentor, a coding tutor.
+{style}
+
+Analyze this {language} code and return ONLY a JSON object:
+- "explanation": your explanation based on the style above
 - "concepts": {json.dumps(concepts)}
 - "has_error": false
 - "friendly_error": null
+- "level": "{level}"
 
 Code:
 ```{language}
 {code}
 ```
 
-The concepts list is already detected, just include it as-is.
 Return ONLY valid JSON, no markdown, no backticks, nothing else."""
 
     response = client.chat.completions.create(
@@ -233,7 +255,7 @@ Return ONLY valid JSON, no markdown, no backticks, nothing else."""
     )
 
     raw = response.choices[0].message.content.strip()
-    print(f"[LiveCode Mentor] Groq response: {raw}")
+    print(f"[LiveCode Mentor] Groq response ({level}): {raw}")
 
     try:
         return json.loads(raw)
@@ -242,7 +264,8 @@ Return ONLY valid JSON, no markdown, no backticks, nothing else."""
             "explanation": raw,
             "concepts": concepts,
             "has_error": False,
-            "friendly_error": None
+            "friendly_error": None,
+            "level": level
         }
 
 @app.get("/health")
@@ -273,7 +296,7 @@ async def analyze(payload: CodePayload):
     
     # FR12: Save concepts to database
     save_concepts(concepts)
-    log_session("analyze", f"{len(concepts)} concepts detected")
+    log_session("analyze", f"trigger:{payload.trigger}")
 
     # FR9: Detect mistakes
     mistake_result = detect_mistakes(payload.code)
