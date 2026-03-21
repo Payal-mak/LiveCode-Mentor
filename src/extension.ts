@@ -18,9 +18,30 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Generate flow command
     context.subscriptions.push(
-        vscode.commands.registerCommand('livecode-mentor.generateFlow', () => {
+        vscode.commands.registerCommand('livecode-mentor.generateFlow', async () => {
             const editor = vscode.window.activeTextEditor;
-            if (editor) { sendCodeToBackend(editor.document, 'flow'); }
+            if (!editor) {
+                vscode.window.showWarningMessage('Open a code file first!');
+                return;
+            }
+            const code = editor.document.getText();
+            const language = editor.document.languageId;
+
+            if (code.trim().length === 0) {
+                vscode.window.showWarningMessage('File is empty!');
+                return;
+            }
+
+            console.log('[LiveCode Mentor] Generating flow diagram...');
+            try {
+                const res = await axios.post(`${BACKEND_URL}/flow`, {
+                    code, language, trigger: 'flow'
+                });
+                sidebarProvider.sendMessage('flow', res.data.mermaid);
+            } catch (e) {
+                console.error('[LiveCode Mentor] Flow error:', e);
+                sidebarProvider.sendMessage('flow', '');
+            }
         })
     );
     context.subscriptions.push(
@@ -103,7 +124,7 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
     const language = document.languageId;
     if (code.trim().length === 0) { return; }
 
-    console.log(`[LiveCode Mentor] Sending code (trigger: ${trigger})`);
+    //console.log(`[LiveCode Mentor] Sending code (trigger: ${trigger})`);
 
     try {
         const res = await axios.post(`${BACKEND_URL}/analyze`, {
@@ -113,20 +134,51 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
         // Update explanation tab
         sidebarProvider.sendMessage('explanation', res.data);
 
-        // FR14 + FR15: Get recommendations
-        if (!res.data.has_error && res.data.concepts && res.data.concepts.length > 0) {
-            try {
-                const recRes = await axios.post(`${BACKEND_URL}/recommendations`, {
-                code, language, trigger
-            });
-            sidebarProvider.sendMessage('recommendations', recRes.data);
-            } catch (e) {
-        console.error('[LiveCode Mentor] Recommendations error:', e);
-            }
+        // Don't show any extra features if there's an error
+        if (res.data.has_error) {
+            sidebarProvider.sendMessage('recommendations', { leetcode: [], article: null });
+            sidebarProvider.sendMessage('autotest', { tests: [] });
+            sidebarProvider.sendMessage('hint', { has_mistake: false });
+            console.log('[LiveCode Mentor] Error detected — skipping hints/tests/recommendations');
+            return;
         }
 
-        // FR8: Auto test on save
-        if (trigger === 'save' && !res.data.has_error) {
+        // Learning mode only features
+        if (currentMode === 'learning') {
+            // FR14 + FR15: Recommendations
+            if (res.data.concepts && res.data.concepts.length > 0) {
+                try {
+                    const recRes = await axios.post(`${BACKEND_URL}/recommendations`, {
+                        code, language, trigger
+                    });
+                    sidebarProvider.sendMessage('recommendations', recRes.data);
+                } catch (e) {
+                    console.error('[LiveCode Mentor] Recommendations error:', e);
+                }
+            }
+
+            // FR9 + FR10: Hints
+            if (res.data.mistake && res.data.mistake.has_mistake) {
+                lastMistake = res.data.mistake.mistake;
+                try {
+                    const hintRes = await axios.post(`${BACKEND_URL}/hint`, {
+                        code, language,
+                        mistake_type: res.data.mistake.mistake.description
+                    });
+                    sidebarProvider.sendMessage('hint', hintRes.data);
+                } catch (e) {
+                    console.error('[LiveCode Mentor] Hint error:', e);
+                }
+            } else {
+                sidebarProvider.sendMessage('hint', { has_mistake: false });
+            }
+        } else {
+            sidebarProvider.sendMessage('hint', { has_mistake: false });
+            sidebarProvider.sendMessage('recommendations', { leetcode: [], article: null });
+        }
+
+        // FR8: Auto test on save only
+        if (trigger === 'save') {
             try {
                 const testRes = await axios.post(`${BACKEND_URL}/auto-test`, {
                     code, language, trigger
@@ -135,19 +187,6 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
             } catch (e) {
                 console.error('[LiveCode Mentor] Auto test error:', e);
             }
-        }
-
-        // FR10: If mistake detected, get hint
-        if (res.data.mistake && res.data.mistake.has_mistake) {
-            lastMistake = res.data.mistake.mistake;
-            const hintRes = await axios.post(`${BACKEND_URL}/hint`, {
-                code,
-                language,
-                mistake_type: res.data.mistake.mistake.description
-            });
-            sidebarProvider.sendMessage('hint', hintRes.data);
-        } else {
-            sidebarProvider.sendMessage('hint', { has_mistake: false });
         }
 
         console.log('[LiveCode Mentor] Sidebar updated!');

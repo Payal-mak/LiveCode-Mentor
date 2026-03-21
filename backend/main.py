@@ -40,7 +40,7 @@ class HintPayload(BaseModel):
 # FR5: AST-based concept detector
 class ConceptDetector(ast.NodeVisitor):
     def __init__(self):
-        self.concepts = set()
+        self.concepts = set()  # set prevents duplicates
 
     def visit_For(self, node):
         self.concepts.add("for loop")
@@ -90,24 +90,30 @@ class ConceptDetector(ast.NodeVisitor):
         self.concepts.add("import / modules")
         self.generic_visit(node)
 
-    def visit_List(self, node):
-        self.concepts.add("list / array")
-        self.generic_visit(node)
-
     def visit_Dict(self, node):
         self.concepts.add("dictionary")
         self.generic_visit(node)
 
     def visit_Call(self, node):
         if isinstance(node.func, ast.Name):
-            if node.func.id == "print":
+            name = node.func.id
+            if name == "print":
                 self.concepts.add("print function")
-            elif node.func.id == "range":
+            elif name == "range":
                 self.concepts.add("range function")
-            elif node.func.id == "len":
+            elif name == "len":
                 self.concepts.add("len function")
-            elif node.func.id == "input":
+            elif name == "input":
                 self.concepts.add("user input")
+            elif name in ("map", "filter", "zip"):
+                self.concepts.add("higher-order functions")
+            elif name in ("sorted", "sort"):
+                self.concepts.add("sorting")
+        self.generic_visit(node)
+
+    def visit_List(self, node):
+        # Only count if it's an assignment, not just any list
+        self.concepts.add("list / array")
         self.generic_visit(node)
 
 def detect_concepts(code: str) -> list:
@@ -115,10 +121,11 @@ def detect_concepts(code: str) -> list:
         tree = ast.parse(code)
         detector = ConceptDetector()
         detector.visit(tree)
-        return list(detector.concepts)
+        # Return sorted unique list, max 10 concepts
+        return sorted(list(detector.concepts))[:10]
     except:
         return []
-
+    
 # FR9: Detect common beginner mistakes
 class MistakeDetector(ast.NodeVisitor):
     def __init__(self, code_lines):

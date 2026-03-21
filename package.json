@@ -60,7 +60,7 @@
       {
         "command": "livecode-mentor.reanalyze",
         "title": "Reanalyze"
-      }
+        }
     ],
     "menus": {
       "editor/context": [

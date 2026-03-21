@@ -765,9 +765,16 @@
         }
 
         function requestFlow() {
-            vscode.postMessage({ type: 'requestFlow' });
-            document.getElementById('flow-loading').style.display = 'flex';
+            // Clear previous diagram
             document.getElementById('mermaid-container').style.display = 'none';
+            document.getElementById('mermaid-container').innerHTML = '';
+            document.getElementById('stepper-container').style.display = 'none';
+
+            // Show loading
+            document.getElementById('flow-loading').style.display = 'flex';
+            document.getElementById('flow-loading-text').textContent = 'Generating flow diagram...';
+
+            vscode.postMessage({ type: 'requestFlow' });
         }
 
         function checkFix() {
@@ -873,17 +880,30 @@
         }
 
         function showFlow(mermaidCode) {
-            document.getElementById('flow-loading').style.display = 'none';
-            const container = document.getElementById('mermaid-container');
-            container.style.display = 'block';
+        document.getElementById('flow-loading').style.display = 'none';
+        document.getElementById('stepper-container').style.display = 'none';
 
-    // Show as formatted code block for now
-    container.innerHTML =
-        '<div style="font-size:11px;opacity:0.6;margin-bottom:8px;">📊 Flow Diagram (Mermaid syntax)</div>' +
-        '<pre style="font-size:11px;line-height:1.5;white-space:pre-wrap;color:var(--vscode-foreground);">' +
-        mermaidCode + '</pre>' +
-        '<div style="font-size:10px;opacity:0.5;margin-top:8px;">Copy this into https://mermaid.live to visualize</div>';
-}
+        const container = document.getElementById('mermaid-container');
+        container.style.display = 'block';
+
+        if (!mermaidCode || mermaidCode.trim() === '') {
+            container.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">Could not generate flow diagram. Try again.</div>';
+            return;
+        }
+
+        container.innerHTML =
+            '<div style="font-size:11px;opacity:0.6;margin-bottom:8px;">📊 Mermaid Flow Diagram</div>' +
+            '<pre style="font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--vscode-foreground);">' +
+            escapeHtml(mermaidCode) + '</pre>' +
+            '<div style="font-size:10px;opacity:0.5;margin-top:8px;">💡 Copy into mermaid.live to see the visual diagram</div>';
+    }
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
         // Load progress from backend
         async function loadProgress() {
             document.getElementById('progress-loading').style.display = 'flex';
