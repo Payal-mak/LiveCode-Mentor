@@ -401,3 +401,53 @@ def get_profile():
         "status": "ok",
         "learner": stats
     }
+    
+    # FR14 + FR15: Generate LeetCode + article recommendations
+@app.post("/recommendations")
+async def get_recommendations(payload: CodePayload):
+    concepts = detect_concepts(payload.code)
+    if not concepts:
+        return {"leetcode": [], "article": None}
+
+    print(f"[LiveCode Mentor] Generating recommendations for: {concepts}")
+
+    prompt = f"""Based on these programming concepts: {json.dumps(concepts)}
+
+Return ONLY a JSON object with exactly this structure:
+{{
+  "leetcode": [
+    {{
+      "title": "Two Sum",
+      "difficulty": "Easy",
+      "url": "https://leetcode.com/problems/two-sum/"
+    }},
+    {{
+      "title": "Running Sum of 1d Array",
+      "difficulty": "Easy",
+      "url": "https://leetcode.com/problems/running-sum-of-1d-array/"
+    }}
+  ],
+  "article": {{
+    "title": "Understanding For Loops in Python",
+    "url": "https://realpython.com/python-for-loop/"
+  }}
+}}
+
+Pick problems and articles that are relevant to: {", ".join(concepts[:3])}
+Difficulty should be Easy or Medium only (beginner friendly).
+Return ONLY valid JSON, no markdown, no backticks."""
+
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400,
+            temperature=0.3
+        )
+        raw = response.choices[0].message.content.strip()
+        print(f"[LiveCode Mentor] Recommendations: {raw}")
+        result = json.loads(raw)
+        return result
+    except Exception as e:
+        print(f"[LiveCode Mentor] Recommendations error: {e}")
+        return {"leetcode": [], "article": None}
