@@ -1,3 +1,8 @@
+from database import init_db, save_concepts, save_mistake, get_stats, get_experience_level, log_session
+
+# Initialize DB on startup
+init_db()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -265,10 +270,18 @@ async def analyze(payload: CodePayload):
     # FR5: Detect concepts using AST
     concepts = detect_concepts(payload.code)
     print(f"[LiveCode Mentor] Concepts: {concepts}")
+    
+    # FR12: Save concepts to database
+    save_concepts(concepts)
+    log_session("analyze", f"{len(concepts)} concepts detected")
 
     # FR9: Detect mistakes
     mistake_result = detect_mistakes(payload.code)
     print(f"[LiveCode Mentor] Mistakes: {mistake_result}")
+    
+    # FR12: Save mistake to database
+    if mistake_result["has_mistake"] and mistake_result["mistake"]:
+        save_mistake(mistake_result["mistake"]["type"])
 
     # FR3: Get AI explanation
     try:
@@ -353,3 +366,15 @@ Code:
     print(f"[LiveCode Mentor] Mermaid code: {mermaid_code}")
 
     return {"mermaid": mermaid_code}
+
+@app.get("/stats")
+def get_progress():
+    return get_stats()
+
+@app.get("/profile")
+def get_profile():
+    stats = get_stats()
+    return {
+        "status": "ok",
+        "learner": stats
+    }
