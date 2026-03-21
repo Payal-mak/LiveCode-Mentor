@@ -23,6 +23,12 @@ export function activate(context: vscode.ExtensionContext) {
             if (editor) { sendCodeToBackend(editor.document, 'flow'); }
         })
     );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('livecode-mentor.reanalyze', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) { sendCodeToBackend(editor.document, 'change'); }
+        })
+    );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('livecode-mentor.generateTrace', async () => {

@@ -784,13 +784,19 @@
         function showExplanation(data) {
         document.getElementById('explanation-loading').style.display = 'none';
         document.getElementById('explanation-content').style.display = 'block';
-        document.getElementById('explanation-text').textContent = data.explanation || 'Analysing...';
+        document.getElementById('explanation-text').textContent =
+            data.explanation || 'Analysing...';
 
-        // FR13: Level badge
+        // FR17: Level badge
         const badge = document.getElementById('level-badge');
         if (data.level) {
             badge.style.display = 'inline-block';
-            if (data.level === 'beginner') {
+            if (data.level === 'developer') {
+                badge.textContent = '⚡ Dev Mode';
+                badge.style.background = 'rgba(124,111,247,0.15)';
+                badge.style.color = '#7c6ff7';
+                badge.style.border = '1px solid rgba(124,111,247,0.3)';
+            } else if (data.level === 'beginner') {
                 badge.textContent = '🌱 Beginner';
                 badge.style.background = 'rgba(107,203,119,0.15)';
                 badge.style.color = '#6bcb77';
@@ -808,18 +814,22 @@
             }
         }
 
+        // FR17: In developer mode — hide all extra cards
+        const isDevMode = currentMode === 'developer';
+
         // Concepts
-        if (data.concepts && data.concepts.length > 0) {
-            document.getElementById('concepts-card').style.display = 'block';
+        const conceptsCard = document.getElementById('concepts-card');
+        if (!isDevMode && data.concepts && data.concepts.length > 0) {
+            conceptsCard.style.display = 'block';
             const list = document.getElementById('concepts-list');
             list.innerHTML = data.concepts.map(c =>
                 '<span class="concept-pill">' + c + '</span>'
             ).join('');
         } else {
-            document.getElementById('concepts-card').style.display = 'none';
+            conceptsCard.style.display = 'none';
         }
 
-        // Error
+        // Error card
         if (data.friendly_error) {
             document.getElementById('error-card').style.display = 'block';
             document.getElementById('error-text').textContent = data.friendly_error;
@@ -827,7 +837,7 @@
             document.getElementById('error-card').style.display = 'none';
         }
 
-        // Bonus: Complexity
+        // Complexity — show in both modes
         if (data.time_complexity && data.space_complexity) {
             document.getElementById('complexity-card').style.display = 'block';
             document.getElementById('time-notation').textContent =
@@ -840,6 +850,12 @@
                 data.space_complexity.reason || '';
         } else {
             document.getElementById('complexity-card').style.display = 'none';
+        }
+
+        // Auto test + resources — hide in dev mode
+        if (isDevMode) {
+            document.getElementById('resources-card').style.display = 'none';
+            document.getElementById('autotest-card').style.display = 'none';
         }
     }
 
@@ -947,6 +963,11 @@
         });
 
             function showAutoTests(data) {
+                // Hide in developer mode
+                if (currentMode === 'developer') {
+                    document.getElementById('autotest-card').style.display = 'none';
+                return; 
+                }
                 const card = document.getElementById('autotest-card');
                 const content = document.getElementById('autotest-content');
 
@@ -974,6 +995,11 @@
 
     
         function showRecommendations(data) {
+            // Hide in developer mode
+            if (currentMode === 'developer') {
+                document.getElementById('resources-card').style.display = 'none';
+            return;
+            }
             const card = document.getElementById('resources-card');
             const content = document.getElementById('resources-content');
 
@@ -1118,17 +1144,30 @@
             currentMode = isDevMode ? 'developer' : 'learning';
             vscode.postMessage({ type: 'setMode', mode: currentMode });
 
-            // Update UI based on mode
             if (isDevMode) {
-                document.body.classList.add('dev-mode');
+                // Hide learning-only cards immediately
+                document.getElementById('concepts-card').style.display = 'none';
+                document.getElementById('resources-card').style.display = 'none';
+                document.getElementById('autotest-card').style.display = 'none';
+                document.getElementById('line-explain-card').style.display = 'none';
+
+                // Update label colors
                 document.getElementById('mode-learning-label').style.color =
                     'var(--vscode-descriptionForeground)';
                 document.getElementById('mode-dev-label').style.color = '#7c6ff7';
+
             } else {
-                document.body.classList.remove('dev-mode');
+                // Switching back to learning mode
                 document.getElementById('mode-learning-label').style.color = '#6bcb77';
                 document.getElementById('mode-dev-label').style.color =
                     'var(--vscode-descriptionForeground)';
+
+                // Show loading and request fresh analysis
+                document.getElementById('explanation-loading').style.display = 'flex';
+                document.getElementById('explanation-content').style.display = 'none';
+
+                // Tell extension to re-analyze with learning mode
+                vscode.postMessage({ type: 'reanalyze' });
             }
         }
 

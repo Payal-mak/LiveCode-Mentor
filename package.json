@@ -56,6 +56,10 @@
       {
         "command": "livecode-mentor.explainLine",
         "title": "LiveCode Mentor: Explain This Line"
+      },
+      {
+        "command": "livecode-mentor.reanalyze",
+        "title": "Reanalyze"
       }
     ],
     "menus": {
