@@ -24,6 +24,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 vscode.commands.executeCommand('livecode-mentor.generateFlow');
             } else if (message.type === 'checkFix') {
                 vscode.commands.executeCommand('livecode-mentor.checkFix');
+            } else if (message.type === 'openLink') {
+                vscode.env.openExternal(vscode.Uri.parse(message.url));
             }
         });
     }

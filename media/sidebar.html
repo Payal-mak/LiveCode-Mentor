@@ -291,6 +291,73 @@
         .tabs .tab {
             font-size: 10px;
         }
+        /* Resource recommendations */
+        .resource-section {
+            margin-top: 12px;
+        }
+
+        .resource-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 8px;
+            color: #ffd93d;
+            opacity: 0.8;
+        }
+
+        .resource-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .resource-card:hover {
+            border-color: var(--vscode-focusBorder);
+        }
+
+        .resource-card-icon {
+            font-size: 14px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .resource-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .resource-card-title {
+            font-size: 12px;
+            color: var(--vscode-foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .resource-card-meta {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 2px;
+        }
+
+        .difficulty-easy {
+            color: #6bcb77;
+            font-weight: 600;
+        }
+
+        .difficulty-medium {
+            color: #ffd93d;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -327,6 +394,11 @@
                 <div class="card" id="concepts-card" style="display:none;">
                     <div class="card-title green">🧠 Concepts detected</div>
                     <div class="concepts" id="concepts-list"></div>
+                </div>
+                <!-- FR14 + FR15: Resource recommendations -->
+                <div class="card" id="resources-card" style="display:none;">
+                    <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
+                    <div id="resources-content"></div>
                 </div>
                 <div class="error-card" id="error-card" style="display:none;">
                     <div class="card-title red">⚠️ Error found</div>
@@ -431,18 +503,7 @@
             vscode.postMessage({ type: 'checkFix' });
         }
 
-        window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.type === 'explanation') {
-                showExplanation(message.data);
-            } else if (message.type === 'hint') {
-                showHint(message.data);
-            } else if (message.type === 'flow') {
-                showFlow(message.data);
-            } else if (message.type === 'loading') {
-                showLoading();
-            }
-        });
+        //deleted the old addEventListener for message and replaced with this one to handle multiple message types
 
         function showLoading() {
             document.getElementById('explanation-loading').style.display = 'flex';
@@ -579,6 +640,75 @@
             originalSwitchTab(tabName);
             if (tabName === 'progress') { loadProgress(); }
         };
+        // FR14 + FR15: Show recommendations
+        window.addEventListener('message', event => {
+            const message = event.data;
+            if (message.type === 'explanation') {
+                showExplanation(message.data);
+            } else if (message.type === 'hint') {
+                showHint(message.data);
+            } else if (message.type === 'flow') {
+                showFlow(message.data);
+            } else if (message.type === 'loading') {
+                showLoading();
+            } else if (message.type === 'recommendations') {
+                showRecommendations(message.data);
+            }
+        });
+
+        function showRecommendations(data) {
+            const card = document.getElementById('resources-card');
+            const content = document.getElementById('resources-content');
+
+            if ((!data.leetcode || data.leetcode.length === 0) && !data.article) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            let html = '';
+
+            // LeetCode problems
+            if (data.leetcode && data.leetcode.length > 0) {
+                html += '<div class="resource-title">🟨 LeetCode Practice</div>';
+                data.leetcode.forEach(problem => {
+                    const diffClass = problem.difficulty === 'Easy'
+                        ? 'difficulty-easy' : 'difficulty-medium';
+                    html += `
+                        <div class="resource-card" onclick="openLink('${problem.url}')">
+                            <div class="resource-card-icon">💻</div>
+                            <div class="resource-card-content">
+                                <div class="resource-card-title">${problem.title}</div>
+                                <div class="resource-card-meta">
+                                    <span class="${diffClass}">${problem.difficulty}</span>
+                                    · leetcode.com
+                                </div>
+                            </div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);">→</div>
+                        </div>`;
+                });
+            }
+
+            // Article
+            if (data.article) {
+                html += '<div class="resource-title" style="margin-top:10px;">📖 Read More</div>';
+                html += `
+                    <div class="resource-card" onclick="openLink('${data.article.url}')">
+                        <div class="resource-card-icon">📄</div>
+                        <div class="resource-card-content">
+                            <div class="resource-card-title">${data.article.title}</div>
+                            <div class="resource-card-meta">Article · realpython.com</div>
+                        </div>
+                        <div style="font-size:10px;color:var(--vscode-descriptionForeground);">→</div>
+                    </div>`;
+            }
+
+            content.innerHTML = html;
+        }
+
+        function openLink(url) {
+            vscode.postMessage({ type: 'openLink', url: url });
+        }
     </script>
 
 </body>

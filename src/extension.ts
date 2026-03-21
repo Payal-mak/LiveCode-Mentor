@@ -90,6 +90,18 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
         // Update explanation tab
         sidebarProvider.sendMessage('explanation', res.data);
 
+        // FR14 + FR15: Get recommendations
+        if (!res.data.has_error && res.data.concepts && res.data.concepts.length > 0) {
+            try {
+                const recRes = await axios.post(`${BACKEND_URL}/recommendations`, {
+                code, language, trigger
+            });
+            sidebarProvider.sendMessage('recommendations', recRes.data);
+            } catch (e) {
+        console.error('[LiveCode Mentor] Recommendations error:', e);
+            }
+        }
+
         // FR10: If mistake detected, get hint
         if (res.data.mistake && res.data.mistake.has_mistake) {
             lastMistake = res.data.mistake.mistake;
