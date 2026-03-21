@@ -247,6 +247,50 @@
             color: #81C784;
             margin-bottom: 12px;
         }
+        /* Progress tab */
+        .concept-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .concept-bar-name {
+            font-size: 11px;
+            color: var(--vscode-foreground);
+            min-width: 120px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .concept-bar-track {
+            flex: 1;
+            height: 6px;
+            background: var(--vscode-panel-border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .concept-bar-fill {
+            height: 100%;
+            background: #7c6ff7;
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+
+        .concept-bar-count {
+            font-size: 10px;
+            font-family: monospace;
+            color: var(--vscode-descriptionForeground);
+            min-width: 20px;
+            text-align: right;
+        }
+
+        /* Tab font size fix for 4 tabs */
+        .tabs .tab {
+            font-size: 10px;
+        }
     </style>
 </head>
 <body>
@@ -261,6 +305,7 @@
         <div class="tab active" onclick="switchTab('explanation')">💡 Explain</div>
         <div class="tab" onclick="switchTab('hint')">🔍 Hint</div>
         <div class="tab" onclick="switchTab('flow')">🔀 Flow</div>
+        <div class="tab" onclick="switchTab('progress')">📊 Progress</div>
     </div>
 
     <div class="content">
@@ -316,7 +361,51 @@
             </div>
             <div id="mermaid-container" style="display:none;"></div>
         </div>
+        <!-- PROGRESS TAB -->
+        <div class="tab-panel" id="panel-progress">
+            <div class="loading" id="progress-loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading your progress...</div>
+            </div>
+            <div id="progress-content" style="display:none;">
 
+                <!-- Concepts learned -->
+                <div class="card">
+                    <div class="card-title green">🧠 Top Concepts Learned</div>
+                    <div id="progress-concepts"></div>
+                </div>
+
+                <!-- Mistakes stats -->
+                <div class="card">
+                    <div class="card-title amber">⚠️ Mistakes Tracker</div>
+                    <div style="display:flex;gap:12px;margin-top:6px;">
+                        <div style="flex:1;text-align:center;padding:10px;background:rgba(255,107,107,0.1);border-radius:6px;border:1px solid rgba(255,107,107,0.2);">
+                            <div style="font-size:22px;font-weight:600;color:#ff6b6b;" id="total-mistakes">0</div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Detected</div>
+                        </div>
+                        <div style="flex:1;text-align:center;padding:10px;background:rgba(107,203,119,0.1);border-radius:6px;border:1px solid rgba(107,203,119,0.2);">
+                            <div style="font-size:22px;font-weight:600;color:#6bcb77;" id="fixed-mistakes">0</div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Fixed</div>
+                        </div>
+                        <div style="flex:1;text-align:center;padding:10px;background:rgba(78,205,196,0.1);border-radius:6px;border:1px solid rgba(78,205,196,0.2);">
+                            <div style="font-size:22px;font-weight:600;color:#4ecdc4;" id="total-concepts-seen">0</div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Concepts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session timer -->
+                <div class="card">
+                    <div class="card-title blue">⏱️ Session</div>
+                    <div style="font-size:24px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
+                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Time spent coding today</div>
+                </div>
+
+                <button class="btn btn-primary" onclick="loadProgress()" style="margin-top:4px;">
+                    🔄 Refresh Stats
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -394,9 +483,9 @@
         }
 
         function showFlow(mermaidCode) {
-    document.getElementById('flow-loading').style.display = 'none';
-    const container = document.getElementById('mermaid-container');
-    container.style.display = 'block';
+            document.getElementById('flow-loading').style.display = 'none';
+            const container = document.getElementById('mermaid-container');
+            container.style.display = 'block';
 
     // Show as formatted code block for now
     container.innerHTML =
@@ -405,6 +494,64 @@
         mermaidCode + '</pre>' +
         '<div style="font-size:10px;opacity:0.5;margin-top:8px;">Copy this into https://mermaid.live to visualize</div>';
 }
+        // Load progress from backend
+        async function loadProgress() {
+            document.getElementById('progress-loading').style.display = 'flex';
+            document.getElementById('progress-content').style.display = 'none';
+
+            try {
+                const response = await fetch('http://localhost:8000/stats');
+                const data = await response.json();
+                renderProgress(data);
+            } catch (e) {
+                document.getElementById('progress-loading').style.display = 'none';
+                document.getElementById('progress-content').style.display = 'block';
+            }
+        }
+
+        function renderProgress(data) {
+            document.getElementById('progress-loading').style.display = 'none';
+            document.getElementById('progress-content').style.display = 'block';
+
+            // Render concept bars
+            const conceptsEl = document.getElementById('progress-concepts');
+            if (data.top_concepts && data.top_concepts.length > 0) {
+                const maxCount = data.top_concepts[0].count;
+                conceptsEl.innerHTML = data.top_concepts.map(c => `
+                    <div class="concept-bar">
+                        <div class="concept-bar-name">${c.name}</div>
+                        <div class="concept-bar-track">
+                            <div class="concept-bar-fill" style="width:${(c.count/maxCount)*100}%"></div>
+                        </div>
+                        <div class="concept-bar-count">×${c.count}</div>
+                    </div>
+                `).join('');
+            } else {
+                conceptsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:8px 0;">Start coding to see your concepts here!</div>';
+            }
+
+            // Render stats
+            document.getElementById('total-mistakes').textContent = data.total_mistakes || 0;
+            document.getElementById('fixed-mistakes').textContent = data.fixed_mistakes || 0;
+            document.getElementById('total-concepts-seen').textContent = data.total_concepts_seen || 0;
+        }
+
+        // Session timer
+        let sessionStart = Date.now();
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+            const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const secs = String(elapsed % 60).padStart(2, '0');
+            const timerEl = document.getElementById('session-timer');
+            if (timerEl) { timerEl.textContent = `${mins}:${secs}`; }
+        }, 1000);
+
+        // Auto-load progress when tab is clicked
+        const originalSwitchTab = switchTab;
+        window.switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'progress') { loadProgress(); }
+        };
     </script>
 
 </body>
