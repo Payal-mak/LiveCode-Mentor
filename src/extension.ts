@@ -6,6 +6,7 @@ const BACKEND_URL = 'http://localhost:8000';
 let debounceTimer: ReturnType<typeof setTimeout>;
 let sidebarProvider: SidebarProvider;
 let lastMistake: { type: string; description: string } | null = null;
+let currentMode: string = 'learning'; // FR17: track mode
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('LiveCode Mentor is now active!');

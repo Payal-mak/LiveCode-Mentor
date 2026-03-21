@@ -30,6 +30,7 @@ class CodePayload(BaseModel):
     language: str = "python"
     fileName: str = ""
     trigger: str = "change"
+    mode: str = "learning"  # "learning" or "developer"
 
 class HintPayload(BaseModel):
     code: str
@@ -210,10 +211,46 @@ Be encouraging and simple. No technical jargon."""
     )
     return response.choices[0].message.content.strip()
 
-async def get_explanation(code: str, language: str, concepts: list) -> dict:
+async def get_explanation(code: str, language: str, concepts: list, mode: str = "learning") -> dict:
     level = get_experience_level(concepts)
-    print(f"[LiveCode Mentor] Experience level: {level}")
+    print(f"[LiveCode Mentor] Experience level: {level}, Mode: {mode}")
 
+    # FR17: Developer mode — minimal explanation
+    if mode == "developer":
+        prompt = f"""Summarize this {language} code in ONE concise technical sentence.
+No analogies. No beginner explanations. Just what it does.
+
+Code:
+```{language}
+{code}
+```
+
+Return ONLY this JSON:
+{{"explanation": "one sentence summary", "concepts": {json.dumps(concepts)}, "has_error": false, "friendly_error": null, "level": "developer", "time_complexity": {{"notation": "O(?)", "reason": "brief reason"}}, "space_complexity": {{"notation": "O(?)", "reason": "brief reason"}}}}
+
+Return ONLY valid JSON."""
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            temperature=0.1
+        )
+        raw = response.choices[0].message.content.strip()
+        try:
+            return json.loads(raw)
+        except:
+            return {
+                "explanation": raw,
+                "concepts": concepts,
+                "has_error": False,
+                "friendly_error": None,
+                "level": "developer",
+                "time_complexity": None,
+                "space_complexity": None
+            }
+
+    # FR13: Learning mode — adaptive explanation
     if level == "beginner":
         style = """Explain this like the student has never coded before.
 Use a simple real-world analogy. 3 sentences max.
@@ -234,19 +271,15 @@ Analyze this {language} code and return ONLY a JSON object:
 - "has_error": false
 - "friendly_error": null
 - "level": "{level}"
-- "time_complexity": Big O time complexity (e.g. "O(n)", "O(n²)", "O(1)") with a one-line reason
-- "space_complexity": Big O space complexity (e.g. "O(1)", "O(n)") with a one-line reason
-
-For complexity fields use this format:
-"time_complexity": {{"notation": "O(n)", "reason": "Single loop iterates n times"}}
-"space_complexity": {{"notation": "O(1)", "reason": "Only stores a few variables"}}
+- "time_complexity": {{"notation": "O(...)", "reason": "one line reason"}}
+- "space_complexity": {{"notation": "O(...)", "reason": "one line reason"}}
 
 Code:
 ```{language}
 {code}
 ```
 
-Return ONLY valid JSON, no markdown, no backticks, nothing else."""
+Return ONLY valid JSON, no markdown, no backticks."""
 
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -311,7 +344,7 @@ async def analyze(payload: CodePayload):
 
     # FR3: Get AI explanation
     try:
-        result = await get_explanation(payload.code, payload.language, concepts)
+        result = await get_explanation(payload.code, payload.language, concepts, payload.mode)
         result["mistake"] = mistake_result
         return result
     except Exception as e:
@@ -717,3 +750,55 @@ Return ONLY valid JSON. No markdown. No explanation."""
     except Exception as e:
         print(f"[LiveCode Mentor] Auto test error: {e}")
         return {"tests": [], "error": str(e)}
+    
+class LinePayload(BaseModel):
+    code: str
+    line: str
+    line_number: int
+    language: str = "python"
+    context: str = ""
+
+@app.post("/explain-line")
+async def explain_line(payload: LinePayload):
+    print(f"[LiveCode Mentor] Explaining line {payload.line_number}: {payload.line}")
+
+    prompt = f"""You are LiveCode Mentor, a friendly coding tutor.
+
+A student clicked on this specific line of code and wants to understand it deeply:
+
+Line {payload.line_number}: {payload.line}
+
+Full code context:
+```{payload.language}
+{payload.code}
+```
+
+Explain ONLY this specific line in detail. Cover:
+1. What this line does step by step
+2. Why it is needed in this program
+3. What would happen if it was removed or changed
+4. Any important concepts used in this line
+
+Be beginner-friendly. Use simple language and analogies.
+Keep explanation under 5 sentences."""
+
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+            temperature=0.3
+        )
+        explanation = response.choices[0].message.content.strip()
+        return {
+            "line": payload.line,
+            "line_number": payload.line_number,
+            "explanation": explanation
+        }
+    except Exception as e:
+        print(f"[LiveCode Mentor] Explain line error: {e}")
+        return {
+            "line": payload.line,
+            "line_number": payload.line_number,
+            "explanation": "Could not explain this line. Please try again."
+        }

@@ -462,6 +462,80 @@
             color: #ff6b6b;
             font-family: monospace;
         }
+        /* Mode toggle */
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 28px;
+            height: 16px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #6bcb77;
+            border-radius: 16px;
+            transition: 0.3s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 10px; width: 10px;
+            left: 3px; bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        input:checked + .slider { background: #7c6ff7; }
+        input:checked + .slider:before { transform: translateX(12px); }
+
+        /* Dev mode styles */
+        body.dev-mode .concepts-card,
+        body.dev-mode #resources-card,
+        body.dev-mode #autotest-card,
+        body.dev-mode #hint-empty,
+        body.dev-mode #hint-content {
+            display: none !important;
+        }
+
+        body.dev-mode .card-title.green { color: #7c6ff7; }
+
+        /* Click to explain */
+        .line-explain-card {
+            background: rgba(78,205,196,0.08);
+            border: 1px solid rgba(78,205,196,0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .line-explain-code {
+            font-family: monospace;
+            font-size: 11px;
+            background: var(--vscode-editor-background);
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            color: #4ecdc4;
+            word-break: break-all;
+        }
+
+        .line-explain-text {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--vscode-foreground);
+        }
     </style>
 </head>
 <body>
@@ -469,7 +543,19 @@
     <div class="header">
         <span class="header-icon">🎓</span>
         <span class="header-title">LIVECODE MENTOR</span>
-        <div class="status-dot"></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+            <div class="mode-toggle">
+                <span class="mode-label" id="mode-learning-label"
+                    style="font-size:9px;color:#6bcb77;font-weight:600;">🎓 Learn</span>
+                <label class="switch">
+                    <input type="checkbox" id="modeToggle" onchange="handleModeToggle(this.checked)">
+                    <span class="slider"></span>
+                </label>
+                <span class="mode-label" id="mode-dev-label"
+                    style="font-size:9px;color:var(--vscode-descriptionForeground);font-weight:600;">⚡ Dev</span>
+            </div>
+            <div class="status-dot"></div>
+        </div>
     </div>
 
     <div class="tabs">
@@ -521,17 +607,30 @@
                     <div class="card-title green">🧠 Concepts detected</div>
                     <div class="concepts" id="concepts-list"></div>
                 </div>
-                <!-- FR14 + FR15: Resource recommendations -->
-                <div class="card" id="resources-card" style="display:none;">
-                    <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
-                    <div id="resources-content"></div>
-                </div>
-                <div class="error-card" id="error-card" style="display:none;">
-                    <div class="card-title red">⚠️ Error found</div>
-                    <div class="card-body" id="error-text"></div>
-                </div>
+            <!-- FR14 + FR15: Resource recommendations -->
+            <div class="card" id="resources-card" style="display:none;">
+                <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
+                <div id="resources-content"></div>
+            </div>
+
+            <!-- FR16: Friendly error messages -->
+            <div class="error-card" id="error-card" style="display:none;">
+                <div class="card-title red">⚠️ Error found</div>
+                <div class="card-body" id="error-text"></div>
+            </div>
+
+            <!-- FR19: Line explain panel -->
+            <div class="line-explain-card" id="line-explain-card" style="display:none;">
+                <div class="card-title" style="color:#4ecdc4;">🔍 Line Explanation</div>
+                <div class="line-explain-code" id="line-explain-code"></div>
+                <div class="loading" id="line-explain-loading" style="display:none;padding:10px 0;">
+                <div class="spinner"></div>
+            </div>
+            <div class="line-explain-text" id="line-explain-text"></div>
+                <button class="btn" style="background:transparent;border:1px solid var(--vscode-panel-border);color:var(--vscode-foreground);margin-top:8px;font-size:10px;" onclick="closeLineExplain()">✕ Close</button>
             </div>
         </div>
+    </div>
 
         <!-- HINT TAB -->
         <div class="tab-panel" id="panel-hint">
@@ -1012,6 +1111,67 @@
                 renderStep(currentStep);
             }
         }
+        // FR17: Mode toggle
+        let currentMode = 'learning';
+
+        function handleModeToggle(isDevMode) {
+            currentMode = isDevMode ? 'developer' : 'learning';
+            vscode.postMessage({ type: 'setMode', mode: currentMode });
+
+            // Update UI based on mode
+            if (isDevMode) {
+                document.body.classList.add('dev-mode');
+                document.getElementById('mode-learning-label').style.color =
+                    'var(--vscode-descriptionForeground)';
+                document.getElementById('mode-dev-label').style.color = '#7c6ff7';
+            } else {
+                document.body.classList.remove('dev-mode');
+                document.getElementById('mode-learning-label').style.color = '#6bcb77';
+                document.getElementById('mode-dev-label').style.color =
+                    'var(--vscode-descriptionForeground)';
+            }
+        }
+
+        // FR19: Line explain
+        function closeLineExplain() {
+            document.getElementById('line-explain-card').style.display = 'none';
+        }
+
+        // Handle line explain messages
+        window.addEventListener('message', event => {
+            const message = event.data;
+            if (message.type === 'explanation') {
+                showExplanation(message.data);
+            } else if (message.type === 'hint') {
+                showHint(message.data);
+            } else if (message.type === 'flow') {
+                showFlow(message.data);
+            } else if (message.type === 'loading') {
+                showLoading();
+            } else if (message.type === 'recommendations') {
+                showRecommendations(message.data);
+            } else if (message.type === 'autotest') {
+                showAutoTests(message.data);
+            } else if (message.type === 'trace') {
+                showTrace(message.data);
+            } else if (message.type === 'lineExplainLoading') {
+                // Show loading for line explain
+                const card = document.getElementById('line-explain-card');
+                card.style.display = 'block';
+                document.getElementById('line-explain-code').textContent =
+                    `Line ${message.data.lineNumber}: ${message.data.line}`;
+                document.getElementById('line-explain-loading').style.display = 'flex';
+                document.getElementById('line-explain-text').textContent = '';
+                // Switch to explain tab
+                switchTab('explanation');
+                // Scroll to top
+                document.querySelector('.content').scrollTop = 0;
+            } else if (message.type === 'lineExplain') {
+                document.getElementById('line-explain-loading').style.display = 'none';
+                document.getElementById('line-explain-text').textContent =
+                    message.data.explanation;
+            }
+        });
     </script>
 
 </body>

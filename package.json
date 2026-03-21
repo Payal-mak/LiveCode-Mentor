@@ -48,8 +48,25 @@
       {
         "command": "livecode-mentor.generateTrace",
         "title": "Generate Trace"
+      },
+      {
+        "command": "livecode-mentor.setMode",
+        "title": "Set Mode"
+      },
+      {
+        "command": "livecode-mentor.explainLine",
+        "title": "LiveCode Mentor: Explain This Line"
       }
-    ]
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "livecode-mentor.explainLine",
+          "group": "livecode",
+          "when": "editorTextFocus"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
