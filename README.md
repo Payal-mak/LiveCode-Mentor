@@ -254,21 +254,19 @@ WebView Sidebar
 
 ## 📸 Screenshots
 
-> Add screenshots of each tab here after recording
-
 | Tab | Screenshot |
 |---|---|
-| Explain Tab (Learning Mode) | `<img width="997" height="894" alt="image" src="https://github.com/user-attachments/assets/f94f56cd-28c3-4ce4-8e09-2e0345e9f413" />
+| Explain Tab (Learning Mode) | <img width="997" height="894" alt="image" src="https://github.com/user-attachments/assets/f94f56cd-28c3-4ce4-8e09-2e0345e9f413" />
 ` |
-| Explain Tab (Developer Mode) | `<img width="1017" height="732" alt="image" src="https://github.com/user-attachments/assets/046d0d2b-3281-4a90-b4a5-300b9437f085" />
+| Explain Tab (Developer Mode) | <img width="1017" height="732" alt="image" src="https://github.com/user-attachments/assets/046d0d2b-3281-4a90-b4a5-300b9437f085" />
 ` |
-| Hint Tab (mistake detected) | `<img width="984" height="681" alt="image" src="https://github.com/user-attachments/assets/bbac4655-6c50-4b58-9dc7-1f9293905711" />
+| Hint Tab (mistake detected) | <img width="984" height="681" alt="image" src="https://github.com/user-attachments/assets/bbac4655-6c50-4b58-9dc7-1f9293905711" />
 ` |
-| Flow Tab (flow diagram) | `<img width="1057" height="734" alt="image" src="https://github.com/user-attachments/assets/3bab70bd-1c0c-42cf-bb1e-a7d053dc9ea6" />
+| Flow Tab (flow diagram) | <img width="1057" height="734" alt="image" src="https://github.com/user-attachments/assets/3bab70bd-1c0c-42cf-bb1e-a7d053dc9ea6" />
 ` |
-| Flow Tab (step through) | `<img width="900" height="661" alt="image" src="https://github.com/user-attachments/assets/fc3a4dcd-ee6f-439d-b4b8-eeec0642ecf1" />
+| Flow Tab (step through) | <img width="900" height="661" alt="image" src="https://github.com/user-attachments/assets/fc3a4dcd-ee6f-439d-b4b8-eeec0642ecf1" />
 ` |
-| Progress Tab | `<img width="928" height="945" alt="image" src="https://github.com/user-attachments/assets/3a5140df-a44b-435a-841f-751c6906bf94" />
+| Progress Tab | <img width="928" height="945" alt="image" src="https://github.com/user-attachments/assets/3a5140df-a44b-435a-841f-751c6906bf94" />
 ` |
 
 ---
