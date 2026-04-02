@@ -219,99 +219,334 @@ Be encouraging and simple. No technical jargon."""
     )
     return response.choices[0].message.content.strip()
 
-async def get_explanation(code: str, language: str, concepts: list, mode: str = "learning") -> dict:
-    level = get_experience_level(concepts)
-    print(f"[LiveCode Mentor] Experience level: {level}, Mode: {mode}")
+# ─────────────────────────────────────────────────────────────────────────────
+# KNOWN COMPLEXITY HINTS — used to anchor Groq instead of letting it guess
+# Keys match exactly what classifier.py detect_algorithm_type() returns
+# ─────────────────────────────────────────────────────────────────────────────
+_KNOWN_COMPLEXITY: dict[str, tuple[str, str]] = {
+    "Binary Search":       ("O(log n)",         "O(1)"),
+    "Two Pointer":         ("O(n)",              "O(1)"),
+    "Sliding Window":      ("O(n)",              "O(1)"),
+    "Dynamic Programming": ("O(n²) typical",    "O(n) to O(n²)"),
+    "Backtracking":        ("O(2ⁿ) worst-case", "O(n) call stack"),
+    "Graph BFS":           ("O(V + E)",          "O(V)"),
+    "Graph DFS":           ("O(V + E)",          "O(V) call stack"),
+    "Greedy":              ("O(n log n)",        "O(1)"),
+    "Divide and Conquer":  ("O(n log n)",        "O(n)"),
+    "Recursion":           ("O(2ⁿ) worst-case", "O(n) call stack"),
+    "Sorting":             ("O(n log n) avg",    "O(n)"),
+    "Linked List":         ("O(n)",              "O(n)"),
+    "Stack":               ("O(n)",              "O(n)"),
+    "Queue":               ("O(n)",              "O(n)"),
+    "Hash Map":            ("O(n)",              "O(n)"),
+    "Tree Traversal":      ("O(n)",              "O(h) where h = tree height"),
+    "Heap":                ("O(n log n)",        "O(n)"),
+}
 
-    # FR17: Developer mode — minimal explanation
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ALGORITHM-SPECIFIC EXPLANATION INSTRUCTIONS
+# Tells Groq exactly what to focus on for each DSA category
+# ─────────────────────────────────────────────────────────────────────────────
+_ALGO_INSTRUCTIONS: dict[str, str] = {
+    "Binary Search": (
+        "Explain the search space halving. Mention what 'left', 'right', and 'mid' represent. "
+        "Explain the condition that determines which half to discard."
+    ),
+    "Two Pointer": (
+        "Explain why two pointers are used instead of a nested loop. "
+        "Describe what each pointer tracks and how they converge."
+    ),
+    "Sliding Window": (
+        "Explain the window concept — what it 'slides' over and why. "
+        "Describe how the window expands or shrinks."
+    ),
+    "Dynamic Programming": (
+        "Explain the DP state definition first. Then explain the recurrence/transition. "
+        "Mention whether this is top-down (memoization) or bottom-up (tabulation). "
+        "If a DP table exists, describe what each cell means."
+    ),
+    "Backtracking": (
+        "Explain the state space tree this code is exploring. "
+        "Identify the 'is_valid' / pruning condition. "
+        "Describe what one 'branch' of the recursion tree looks like."
+    ),
+    "Graph BFS": (
+        "Explain the layer-by-layer traversal. Mention the role of the queue and the visited set. "
+        "Describe what one BFS level looks like conceptually."
+    ),
+    "Graph DFS": (
+        "Explain the depth-first exploration. Mention the role of the stack (or call stack for recursive DFS). "
+        "Describe when backtracking happens."
+    ),
+    "Recursion": (
+        "Identify the base case and recursive case explicitly. "
+        "Describe what one level of the recursion tree looks like. "
+        "Explain how the call stack unwinds."
+    ),
+    "Divide and Conquer": (
+        "Explain the three phases: Divide, Conquer, Combine. "
+        "Describe what the subproblems are and how results are merged."
+    ),
+    "Sorting": (
+        "Name the sorting algorithm and explain its comparison/swap strategy. "
+        "Explain why the time complexity is what it is (e.g. why merge sort is O(n log n))."
+    ),
+    "Tree Traversal": (
+        "Identify the traversal order (inorder / preorder / postorder / level-order). "
+        "Explain what visiting a node means and in what order children are processed."
+    ),
+    "Greedy": (
+        "Explain the greedy choice made at each step. "
+        "Describe why a locally optimal choice leads to a globally optimal solution here."
+    ),
+    "Heap": (
+        "Explain the heap property being maintained. "
+        "Describe when elements are pushed vs. popped and what that achieves."
+    ),
+    "Linked List": (
+        "Explain the pointer manipulation. Describe what 'head', 'current', and 'next' point to at each step. "
+        "If traversal or insertion/deletion is happening, describe the pointer re-linking."
+    ),
+    "Hash Map": (
+        "Explain what is being stored in the map and why. "
+        "Describe how the hash map reduces time complexity vs. a brute-force approach."
+    ),
+}
+
+
+def _build_complexity_hint(algorithms: list) -> tuple[str, str]:
+    """
+    Returns (time_hint, space_hint) strings from the first recognized algorithm.
+    Falls back to empty strings so Groq must figure it out itself.
+    """
+    for algo in (algorithms or []):
+        if algo in _KNOWN_COMPLEXITY:
+            return _KNOWN_COMPLEXITY[algo]
+    return ("", "")
+
+
+def _build_algo_context(algorithms: list, paradigms: list, language: str) -> str:
+    """
+    Builds a context block injected into the prompt so Groq knows
+    exactly what type of code it is analyzing.
+    """
+    lines = []
+
+    if language == "cpp":
+        lines.append("Language: C++ — explain memory management, pointers, or STL containers if relevant.")
+    elif language == "java":
+        lines.append("Language: Java — note class structure and OOP patterns if relevant.")
+
+    if algorithms:
+        lines.append(f"Detected algorithm type(s): {', '.join(algorithms)}")
+        # Add the specific instruction for the primary algorithm
+        primary = algorithms[0]
+        if primary in _ALGO_INSTRUCTIONS:
+            lines.append(f"Focus on: {_ALGO_INSTRUCTIONS[primary]}")
+
+    if paradigms:
+        lines.append(f"Detected paradigm(s): {', '.join(paradigms)}")
+        if "Object-Oriented Programming" in paradigms:
+            lines.append("Explain class design, attributes, and method responsibilities.")
+        if "Functional Programming" in paradigms:
+            lines.append("Explain lambda/list comprehension/generator usage and why it's used here.")
+
+    return "\n".join(lines)
+
+
+async def get_explanation(
+    code: str,
+    language: str,
+    concepts: list,
+    mode: str = "learning",
+    algorithms: list = None,
+    paradigms: list = None
+) -> dict:
+    level = get_experience_level(concepts)
+    algorithms = algorithms or []
+    paradigms  = paradigms  or []
+
+    print(f"[LiveCode Mentor] get_explanation | level={level} | mode={mode} | "
+          f"algos={algorithms} | paradigms={paradigms} | lang={language}")
+
+    algo_context   = _build_algo_context(algorithms, paradigms, language)
+    time_hint, space_hint = _build_complexity_hint(algorithms)
+
+    # ── Complexity hint string to anchor Groq ─────────────────────────────────
+    complexity_hint = ""
+    if time_hint and space_hint:
+        complexity_hint = (
+            f'\nIMPORTANT: The expected complexity for this algorithm is '
+            f'Time {time_hint}, Space {space_hint}. '
+            f'Use these as your answer unless the specific code clearly differs — explain why.'
+        )
+
+    # ── JSON template (same shape for all modes) ─────────────────────────────
+    json_template = (
+        '{'
+        '"explanation": "...", '
+        f'"concepts": {json.dumps(concepts)}, '
+        '"has_error": false, '
+        '"friendly_error": null, '
+        f'"level": "{level if mode != "developer" else "developer"}", '
+        '"time_complexity": {"notation": "O(...)", "reason": "..."}, '
+        '"space_complexity": {"notation": "O(...)", "reason": "..."}'
+        '}'
+    )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # DEVELOPER MODE — unchanged logic, just now passes through algo context
+    # ─────────────────────────────────────────────────────────────────────────
     if mode == "developer":
         prompt = f"""Summarize this {language} code in ONE concise technical sentence.
-No analogies. No beginner explanations. Just what it does.
+No analogies. No beginner explanations. Just what it does and its complexity.
+{algo_context}
+{complexity_hint}
 
 Code:
 ```{language}
 {code}
 ```
 
-Return ONLY this JSON:
-{{"explanation": "one sentence summary", "concepts": {json.dumps(concepts)}, "has_error": false, "friendly_error": null, "level": "developer", "time_complexity": {{"notation": "O(?)", "reason": "brief reason"}}, "space_complexity": {{"notation": "O(?)", "reason": "brief reason"}}}}
-
-Return ONLY valid JSON."""
+Return ONLY this JSON (no markdown, no backticks):
+{json_template}"""
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200,
+            max_tokens=250,
             temperature=0.1
         )
         raw = response.choices[0].message.content.strip()
-        try:
-            return json.loads(raw)
-        except:
-            return {
-                "explanation": raw,
-                "concepts": concepts,
-                "has_error": False,
-                "friendly_error": None,
-                "level": "developer",
-                "time_complexity": None,
-                "space_complexity": None
-            }
+        return _parse_or_fallback(raw, concepts, "developer")
 
-    # FR13: Learning mode — adaptive explanation
+    # ─────────────────────────────────────────────────────────────────────────
+    # LEARNING MODE — adaptive by level + algorithm-specific instructions
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Decide if this is complex DSA code — affects explanation depth
+    is_complex_dsa = bool(algorithms) and any(a in _ALGO_INSTRUCTIONS for a in algorithms)
+
     if level == "beginner":
-        style = """Explain this like the student has never coded before.
+        if is_complex_dsa:
+            style = f"""Explain this to a complete beginner who has never seen {algorithms[0]} before.
+Start with a 1-sentence real-world analogy (e.g. "Binary search is like opening a dictionary in the middle...").
+Then explain step-by-step what the code does in plain English. 4 sentences max.
+Avoid ALL jargon — if you must use a term, define it in the same sentence."""
+        else:
+            style = """Explain this like the student has never coded before.
 Use a simple real-world analogy. 3 sentences max.
 Avoid ALL technical jargon."""
-    elif level == "intermediate":
-        style = """Explain this to someone who understands basic programming.
-Be clear and concise. 2 sentences maximum."""
-    else:
-        style = """Give a concise 1-sentence technical summary.
-Assume expert-level Python knowledge."""
 
-    prompt = f"""You are LiveCode Mentor, a coding tutor.
+    elif level == "intermediate":
+        if is_complex_dsa:
+            style = f"""Explain this to someone who knows basic programming but is learning {algorithms[0]}.
+Name the algorithm/technique. Explain HOW it works in this code (not just what it does).
+Be specific about the key variables, conditions, or data structures involved. 3 sentences max."""
+        else:
+            style = """Explain this to someone who understands basic programming.
+Be clear and concise. 2 sentences maximum."""
+
+    else:  # expert
+        if is_complex_dsa:
+            style = f"""Give a precise technical explanation for an expert who knows {algorithms[0]}.
+Focus on the specific implementation choices: time/space trade-offs, edge cases handled, 
+any non-obvious optimizations. 2 sentences max."""
+        else:
+            style = """Give a concise 1-sentence technical summary.
+Assume expert-level knowledge."""
+
+    # ── Full learning mode prompt ─────────────────────────────────────────────
+    prompt = f"""You are LiveCode Mentor, an adaptive coding tutor.
+
+STUDENT LEVEL: {level}
 {style}
 
-Analyze this {language} code and return ONLY a JSON object:
-- "explanation": your explanation
-- "concepts": {json.dumps(concepts)}
-- "has_error": false
-- "friendly_error": null
-- "level": "{level}"
-- "time_complexity": {{"notation": "O(...)", "reason": "one line reason"}}
-- "space_complexity": {{"notation": "O(...)", "reason": "one line reason"}}
+{f"ALGORITHM CONTEXT:{chr(10)}{algo_context}" if algo_context else ""}
+{complexity_hint}
 
-Code:
+Analyze this {language} code:
 ```{language}
 {code}
 ```
 
-Return ONLY valid JSON, no markdown, no backticks."""
+Return ONLY valid JSON (no markdown, no backticks, no commentary before or after):
+{json_template}
+
+Rules:
+- "explanation" must follow the style instructions above exactly
+- "time_complexity.notation" and "space_complexity.notation" must be Big-O strings like "O(n log n)"
+- "time_complexity.reason" and "space_complexity.reason" must each be one line, max 12 words
+- If the code is too short to analyze (< 3 lines), set both complexities to "O(1)"
+- Never put markdown, code blocks, or extra text outside the JSON"""
+
+    # More tokens for complex DSA — it genuinely needs more output
+    max_tokens = 800 if is_complex_dsa else 600
 
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=600,
-        temperature=0.3
+        max_tokens=max_tokens,
+        temperature=0.2   # lower than before — less hallucination on complexity
     )
 
     raw = response.choices[0].message.content.strip()
-    print(f"[LiveCode Mentor] Groq response ({level}): {raw}")
+    print(f"[LiveCode Mentor] Groq raw ({level}, complex={is_complex_dsa}): {raw[:120]}...")
+    return _parse_or_fallback(raw, concepts, level)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SHARED PARSE HELPER — extracted so both modes use identical fallback logic
+# ─────────────────────────────────────────────────────────────────────────────
+def _parse_or_fallback(raw: str, concepts: list, level: str) -> dict:
+    """
+    Try to parse Groq's response as JSON.
+    If it fails, strip common wrapping artifacts and retry once.
+    Falls back to a plain-text explanation dict on second failure.
+    """
+    # Attempt 1: direct parse
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {
-            "explanation": raw,
-            "concepts": concepts,
-            "has_error": False,
-            "friendly_error": None,
-            "level": level,
-            "time_complexity": None,
-            "space_complexity": None
-        }
+        pass
 
+    # Attempt 2: strip markdown fences Groq sometimes adds despite instructions
+    cleaned = raw
+    if "```" in cleaned:
+        # Extract content between first ``` and last ```
+        parts = cleaned.split("```")
+        # parts[1] is between first and second fence — strip language hint if present
+        if len(parts) >= 3:
+            inner = parts[1]
+            if inner.startswith("json"):
+                inner = inner[4:]
+            cleaned = inner.strip()
+
+    # Sometimes Groq adds text before the JSON object
+    brace_start = cleaned.find('{')
+    brace_end   = cleaned.rfind('}')
+    if brace_start != -1 and brace_end != -1:
+        cleaned = cleaned[brace_start:brace_end + 1]
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Final fallback — return whatever text Groq gave as the explanation
+    return {
+        "explanation":      raw,
+        "concepts":         concepts,
+        "has_error":        False,
+        "friendly_error":   None,
+        "level":            level,
+        "time_complexity":  None,
+        "space_complexity": None,
+        "algorithms":       [],
+        "paradigms":        []
+    }
+    
 @app.get("/health")
 def health():
     return {"status": "LiveCode Mentor backend running ✅"}
@@ -326,15 +561,15 @@ async def analyze(payload: CodePayload):
         if syntax_error:
             print(f"[LiveCode Mentor] Syntax error: {syntax_error}")
             friendly = await get_friendly_error(syntax_error, payload.code)
-            return {
-                "explanation": f"There's a syntax error on line {syntax_error['line']}.",
-                "concepts": [],
-                "algorithms": [],
-                "paradigms": [],
-                "has_error": True,
-                "friendly_error": friendly,
-                "mistake": None
-            }
+            result = await get_explanation(
+                payload.code,
+                payload.language,
+                all_concepts,
+                payload.mode,
+                algorithms=algorithms,   # H4: pass H3 classifier output through
+                paradigms=paradigms
+            )
+
 
     # FR5: Detect concepts using AST (basic detection)
     basic_concepts = detect_concepts(payload.code)
