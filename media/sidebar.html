@@ -797,12 +797,6 @@
                     <div id="autotest-content" style="margin-top:8px;"></div>
                 </div>
 
-                <!-- Concepts card -->
-                <div class="card" id="concepts-card" style="display:none;">
-                    <div class="card-title green">🧠 Concepts detected</div>
-                    <div class="concepts" id="concepts-list"></div>
-                </div>
-
                 <!-- Resource recommendations -->
                 <div class="card" id="resources-card" style="display:none;">
                     <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
@@ -1119,17 +1113,6 @@
                 renderClassificationPills(data);
             } else {
                 document.getElementById('classification-card').style.display = 'none';
-            }
-
-            // Concepts
-            const conceptsCard = document.getElementById('concepts-card');
-            if (!isDevMode && data.concepts && data.concepts.length > 0) {
-                conceptsCard.style.display = 'block';
-                document.getElementById('concepts-list').innerHTML = data.concepts.map(c =>
-                    '<span class="concept-pill">' + c + '</span>'
-                ).join('');
-            } else {
-                conceptsCard.style.display = 'none';
             }
 
             // Error card
