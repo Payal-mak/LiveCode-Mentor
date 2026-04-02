@@ -1043,12 +1043,54 @@ async def auto_test(payload: CodePayload):
                 "input_style": "hardcoded"
             }
         else:
-            # Dynamic cin or no input — just tell user to run locally
-            return {
-                "tests": [],
-                "error": "C++ execution requires local compilation. Use g++ to run.",
-                "input_style": input_style
-            }
+            # "none" — no input, no hardcoded vars
+            # Detect if OOP code
+            has_class = any(isinstance(n, ast.ClassDef) for n in ast.walk(tree))
+            oop_hint = ""
+            if has_class and classes:
+                oop_hint = f"""
+        SPECIAL RULE FOR OOP CODE: 
+        - Create an instance first, then check state AFTER calling methods
+        - Example: obj = {classes[0]}(...); obj.some_method(); print(obj.some_attribute)
+        - Do NOT call void methods directly in print() — they return None
+        - Instead test the STATE after calling the method
+        - Valid: s = Student('Payal'); s.add_grade('Math', 90); print(s.average())
+        - Invalid: print(s.add_grade('Math', 90))  ← returns None
+        """
+
+            prompt = f"""You are a Python testing assistant.
+
+        Here is the code to test:
+        ```python
+        {payload.code}
+        ```
+
+        Code structure:
+        {context}
+        {oop_hint}
+
+        Generate EXACTLY 3 test lines that verify the code works correctly.
+        Each test must be a COMPLETE standalone sequence — if it needs setup, do it on the SAME line using semicolons only if unavoidable, or better: use a one-liner that creates objects inline.
+
+        STRICT RULES:
+        1. Each "input_code" must produce VISIBLE output (a non-None value printed)
+        2. Never call void/mutator methods directly inside print() — they return None
+        3. For class methods that mutate state: create object, call method, then print attribute
+        4. Use ONLY names that exist in the code above
+        5. No multi-line strings — each input_code is a SINGLE line
+
+        Return ONLY this JSON:
+        {{
+        "tests": [
+            {{"input_code": "print(something_with_value)", "description": "what this tests"}},
+            {{"input_code": "print(something_with_value)", "description": "what this tests"}},
+            {{"input_code": "print(something_with_value)", "description": "what this tests"}}
+        ]
+        }}
+
+        Return ONLY valid JSON. No markdown. No explanation."""
+
+            num_tests_expected = 3
 
     # ── Python only below this point ──────────────────────────────────────────
     try:
