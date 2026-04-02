@@ -1143,23 +1143,23 @@
 
         // ── showHint ──────────────────────────────────────────────────────────
         function showHint(data) {
-        const hintEmpty   = document.getElementById('hint-empty');
-        const hintContent = document.getElementById('hint-content');
-        const hintSuccess = document.getElementById('hint-success');
+            const hintEmpty   = document.getElementById('hint-empty');
+            const hintContent = document.getElementById('hint-content');
+            const hintSuccess = document.getElementById('hint-success');
 
-        if (!hintEmpty || !hintContent || !hintSuccess) { return; }
+            if (!hintEmpty || !hintContent || !hintSuccess) { return; }
 
-        if (data && data.has_mistake && data.hint) {
-            hintEmpty.style.display   = 'none';
-            hintSuccess.style.display = 'none';
-            hintContent.style.display = 'block';
-            document.getElementById('hint-text').textContent = data.hint;
-        } else {
-            hintContent.style.display = 'none';
-            hintSuccess.style.display = 'none';
-            hintEmpty.style.display   = 'block';
+            if (data && data.has_mistake && data.hint) {
+                hintEmpty.style.display   = 'none';
+                hintSuccess.style.display = 'none';
+                hintContent.style.display = 'block';
+                document.getElementById('hint-text').textContent = data.hint;
+            } else {
+                hintContent.style.display = 'none';
+                hintSuccess.style.display = 'none';
+                hintEmpty.style.display   = 'block';
+            }
         }
-    }
 
         // ── showFlow ──────────────────────────────────────────────────────────
         function showFlow(mermaidCode) {
