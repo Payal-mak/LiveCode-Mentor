@@ -135,6 +135,23 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // FR23: Get current code mistakes for progress tab
+    context.subscriptions.push(
+        vscode.commands.registerCommand('livecode-mentor.getCurrentMistakes', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) { return; }
+            try {
+                const res = await axios.post(`${BACKEND_URL}/current-mistakes`, {
+                    code: editor.document.getText(),
+                    language: editor.document.languageId
+                });
+                sidebarProvider.sendMessage('currentMistakes', res.data);
+            } catch (e) {
+                console.error('[LiveCode Mentor] Current mistakes error:', e);
+            }
+        })
+    );
+
     // Health check
     axios.get(`${BACKEND_URL}/health`)
         .then(res => {
