@@ -1,5 +1,6 @@
 from database import init_db, save_concepts, save_mistake, get_stats, get_experience_level, log_session, MAJOR_DSA
 from tracer import trace_code
+from classifier import get_all_concepts
 
 # Initialize DB on startup
 init_db()
@@ -328,43 +329,58 @@ async def analyze(payload: CodePayload):
             return {
                 "explanation": f"There's a syntax error on line {syntax_error['line']}.",
                 "concepts": [],
+                "algorithms": [],
+                "paradigms": [],
                 "has_error": True,
                 "friendly_error": friendly,
                 "mistake": None
             }
 
-    # FR5: Detect concepts using AST
-    concepts = detect_concepts(payload.code)
-    print(f"[LiveCode Mentor] Concepts: {concepts}")
-    
+    # FR5: Detect concepts using AST (basic detection)
+    basic_concepts = detect_concepts(payload.code)
+    print(f"[LiveCode Mentor] Basic concepts: {basic_concepts}")
+
+    # H3: Deep DSA classification — paradigms + algorithm types + merged concept list
+    classification = get_all_concepts(payload.code, payload.language, basic_concepts)
+    algorithms   = classification["algorithms"]
+    paradigms    = classification["paradigms"]
+    all_concepts = classification["all_concepts"]
+    print(f"[LiveCode Mentor] Algorithms: {algorithms} | Paradigms: {paradigms}")
+
     # FR12: Save concepts to database — ONLY on save trigger to prevent inflation
     if payload.trigger == 'save':
-        save_concepts(concepts)
+        saved = save_concepts(all_concepts)   # now saves all_concepts (deep + basic merged)
+        print(f"[LiveCode Mentor] Saved {saved} major concepts to DB")
     log_session("analyze", f"trigger:{payload.trigger}")
 
     # FR9: Detect mistakes
     mistake_result = detect_mistakes(payload.code)
     print(f"[LiveCode Mentor] Mistakes: {mistake_result}")
-    
+
     # FR12: Save mistake to database — ONLY on save trigger
     if payload.trigger == 'save' and mistake_result["has_mistake"] and mistake_result["mistake"]:
         save_mistake(mistake_result["mistake"]["type"])
 
-    # FR3: Get AI explanation
+    # FR3: Get AI explanation (pass all_concepts so Groq has full context)
     try:
-        result = await get_explanation(payload.code, payload.language, concepts, payload.mode)
-        result["mistake"] = mistake_result
+        result = await get_explanation(payload.code, payload.language, all_concepts, payload.mode)
+        result["mistake"]    = mistake_result
+        result["algorithms"] = algorithms   # H3: e.g. ["Binary Search", "Recursion"]
+        result["paradigms"]  = paradigms    # H3: e.g. ["Procedural Programming"]
+        result["concepts"]   = all_concepts # replaces old basic concepts list
         return result
     except Exception as e:
         print(f"[LiveCode Mentor] Error: {e}")
         return {
             "explanation": "Could not analyze code. Please try again.",
-            "concepts": concepts,
-            "has_error": False,
+            "concepts":    all_concepts,
+            "algorithms":  algorithms,
+            "paradigms":   paradigms,
+            "has_error":   False,
             "friendly_error": None,
-            "mistake": mistake_result
+            "mistake":     mistake_result
         }
-
+        
 # FR10: Generate hint for detected mistake
 @app.post("/hint")
 async def get_hint(payload: HintPayload):
