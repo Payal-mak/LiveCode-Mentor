@@ -136,10 +136,10 @@
             opacity: 0.6;
         }
 
-        .card-title.blue { color: #4FC3F7; }
+        .card-title.blue  { color: #4FC3F7; }
         .card-title.green { color: #81C784; }
         .card-title.amber { color: #FFB74D; }
-        .card-title.red { color: #E57373; }
+        .card-title.red   { color: #E57373; }
 
         .card-body {
             font-size: 12px;
@@ -247,6 +247,7 @@
             color: #81C784;
             margin-bottom: 12px;
         }
+
         /* Progress tab */
         .concept-bar {
             display: flex;
@@ -288,13 +289,10 @@
         }
 
         /* Tab font size fix for 4 tabs */
-        .tabs .tab {
-            font-size: 10px;
-        }
+        .tabs .tab { font-size: 10px; }
+
         /* Resource recommendations */
-        .resource-section {
-            margin-top: 12px;
-        }
+        .resource-section { margin-top: 12px; }
 
         .resource-title {
             font-size: 10px;
@@ -320,9 +318,7 @@
             transition: border-color 0.2s;
         }
 
-        .resource-card:hover {
-            border-color: var(--vscode-focusBorder);
-        }
+        .resource-card:hover { border-color: var(--vscode-focusBorder); }
 
         .resource-card-icon {
             font-size: 14px;
@@ -349,15 +345,8 @@
             margin-top: 2px;
         }
 
-        .difficulty-easy {
-            color: #6bcb77;
-            font-weight: 600;
-        }
-
-        .difficulty-medium {
-            color: #ffd93d;
-            font-weight: 600;
-        }
+        .difficulty-easy   { color: #6bcb77; font-weight: 600; }
+        .difficulty-medium { color: #ffd93d; font-weight: 600; }
 
         /* Stepper variable pills */
         .var-pill {
@@ -374,14 +363,8 @@
             color: var(--vscode-foreground);
         }
 
-        .var-name {
-            color: #7c6ff7;
-            font-weight: 600;
-        }
-
-        .var-value {
-            color: #6bcb77;
-        }
+        .var-name  { color: #7c6ff7; font-weight: 600; }
+        .var-value { color: #6bcb77; }
 
         /* Complexity badges */
         .complexity-row {
@@ -434,11 +417,7 @@
             font-size: 11px;
         }
 
-        .test-status {
-            font-size: 13px;
-            min-width: 18px;
-        }
-
+        .test-status { font-size: 13px; min-width: 18px; }
         .test-content { flex: 1; }
 
         .test-input {
@@ -447,27 +426,12 @@
             margin-bottom: 3px;
         }
 
-        .test-output {
-            font-family: monospace;
-            color: #6bcb77;
-        }
+        .test-output  { font-family: monospace; color: #6bcb77; }
+        .test-desc    { color: var(--vscode-descriptionForeground); font-size: 10px; margin-bottom: 3px; }
+        .test-error   { color: #ff6b6b; font-family: monospace; }
 
-        .test-desc {
-            color: var(--vscode-descriptionForeground);
-            font-size: 10px;
-            margin-bottom: 3px;
-        }
-
-        .test-error {
-            color: #ff6b6b;
-            font-family: monospace;
-        }
         /* Mode toggle */
-        .mode-toggle {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        .mode-toggle { display: flex; align-items: center; gap: 5px; }
 
         .switch {
             position: relative;
@@ -500,12 +464,13 @@
         input:checked + .slider { background: #7c6ff7; }
         input:checked + .slider:before { transform: translateX(12px); }
 
-        /* Dev mode styles */
+        /* Dev mode — hide learning-only cards */
         body.dev-mode .concepts-card,
         body.dev-mode #resources-card,
         body.dev-mode #autotest-card,
         body.dev-mode #hint-empty,
-        body.dev-mode #hint-content {
+        body.dev-mode #hint-content,
+        body.dev-mode #classification-card { /* H3 NEW — also hide pills in dev mode */
             display: none !important;
         }
 
@@ -535,6 +500,25 @@
             font-size: 12px;
             line-height: 1.6;
             color: var(--vscode-foreground);
+        }
+
+        /* H3 NEW — Classification pill rows */
+        .classification-row-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 5px;
+        }
+
+        .classification-pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            margin: 2px 3px 2px 0;
         }
     </style>
 </head>
@@ -574,63 +558,88 @@
                 <div class="loading-text">Open a Python file and start coding...<br>LiveCode Mentor will analyse your code!</div>
             </div>
             <div id="explanation-content" style="display:none;">
+
+                <!-- Main explanation card -->
                 <div class="card">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <div class="card-title blue" style="margin-bottom:0;">📖 What your code does</div>
-                    <span id="level-badge" style="display:none;font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;"></span>
-                </div>
-                <div class="card-body" id="explanation-text"></div>
-            </div>
-            <!-- Complexity card -->
-            <div class="card" id="complexity-card" style="display:none;">
-                <div class="card-title" style="color:#4ecdc4;">⚡ Complexity Analysis</div>
-                <div class="complexity-row">
-                    <div class="complexity-badge">
-                        <div class="complexity-notation" id="time-notation">—</div>
-                        <div class="complexity-label">Time</div>
-                        <div class="complexity-reason" id="time-reason"></div>
+                        <div class="card-title blue" style="margin-bottom:0;">📖 What your code does</div>
+                        <span id="level-badge" style="display:none;font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;"></span>
                     </div>
-                    <div class="complexity-badge">
-                        <div class="complexity-notation" id="space-notation">—</div>
-                        <div class="complexity-label">Space</div>
-                        <div class="complexity-reason" id="space-reason"></div>
-                    </div>
+                    <div class="card-body" id="explanation-text"></div>
                 </div>
-            </div>
 
-            <!-- Auto test results -->
-            <div class="card" id="autotest-card" style="display:none;">
-                <div class="card-title amber">🧪 Auto Test Results</div>
-                <div id="autotest-content" style="margin-top:8px;"></div>
-            </div>
+                <!-- H3 NEW — Algorithm type + Paradigm grouped pills -->
+                <div class="card" id="classification-card" style="display:none;">
+                    <div class="card-title" style="color:#a78bfa;opacity:1;">🧬 Code Classification</div>
+
+                    <!-- Algorithm type row -->
+                    <div id="algo-row" style="display:none; margin-bottom: 10px;">
+                        <div class="classification-row-label" style="color:#7c6ff7;">⚡ Algorithm Type</div>
+                        <div id="algo-pills"></div>
+                    </div>
+
+                    <!-- Paradigm row -->
+                    <div id="paradigm-row" style="display:none;">
+                        <div class="classification-row-label" style="color:#4ecdc4;">🧩 Paradigm</div>
+                        <div id="paradigm-pills"></div>
+                    </div>
+                </div>
+                <!-- END H3 NEW -->
+
+                <!-- Complexity card -->
+                <div class="card" id="complexity-card" style="display:none;">
+                    <div class="card-title" style="color:#4ecdc4;">⚡ Complexity Analysis</div>
+                    <div class="complexity-row">
+                        <div class="complexity-badge">
+                            <div class="complexity-notation" id="time-notation">—</div>
+                            <div class="complexity-label">Time</div>
+                            <div class="complexity-reason" id="time-reason"></div>
+                        </div>
+                        <div class="complexity-badge">
+                            <div class="complexity-notation" id="space-notation">—</div>
+                            <div class="complexity-label">Space</div>
+                            <div class="complexity-reason" id="space-reason"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auto test results -->
+                <div class="card" id="autotest-card" style="display:none;">
+                    <div class="card-title amber">🧪 Auto Test Results</div>
+                    <div id="autotest-content" style="margin-top:8px;"></div>
+                </div>
+
+                <!-- Concepts card -->
                 <div class="card" id="concepts-card" style="display:none;">
                     <div class="card-title green">🧠 Concepts detected</div>
                     <div class="concepts" id="concepts-list"></div>
                 </div>
-            <!-- FR14 + FR15: Resource recommendations -->
-            <div class="card" id="resources-card" style="display:none;">
-                <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
-                <div id="resources-content"></div>
-            </div>
 
-            <!-- FR16: Friendly error messages -->
-            <div class="error-card" id="error-card" style="display:none;">
-                <div class="card-title red">⚠️ Error found</div>
-                <div class="card-body" id="error-text"></div>
-            </div>
+                <!-- Resource recommendations -->
+                <div class="card" id="resources-card" style="display:none;">
+                    <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
+                    <div id="resources-content"></div>
+                </div>
 
-            <!-- FR19: Line explain panel -->
-            <div class="line-explain-card" id="line-explain-card" style="display:none;">
-                <div class="card-title" style="color:#4ecdc4;">🔍 Line Explanation</div>
-                <div class="line-explain-code" id="line-explain-code"></div>
-                <div class="loading" id="line-explain-loading" style="display:none;padding:10px 0;">
-                <div class="spinner"></div>
-            </div>
-            <div class="line-explain-text" id="line-explain-text"></div>
-                <button class="btn" style="background:transparent;border:1px solid var(--vscode-panel-border);color:var(--vscode-foreground);margin-top:8px;font-size:10px;" onclick="closeLineExplain()">✕ Close</button>
+                <!-- Friendly error messages -->
+                <div class="error-card" id="error-card" style="display:none;">
+                    <div class="card-title red">⚠️ Error found</div>
+                    <div class="card-body" id="error-text"></div>
+                </div>
+
+                <!-- FR19: Line explain panel -->
+                <div class="line-explain-card" id="line-explain-card" style="display:none;">
+                    <div class="card-title" style="color:#4ecdc4;">🔍 Line Explanation</div>
+                    <div class="line-explain-code" id="line-explain-code"></div>
+                    <div class="loading" id="line-explain-loading" style="display:none;padding:10px 0;">
+                        <div class="spinner"></div>
+                    </div>
+                    <div class="line-explain-text" id="line-explain-text"></div>
+                    <button class="btn" style="background:transparent;border:1px solid var(--vscode-panel-border);color:var(--vscode-foreground);margin-top:8px;font-size:10px;" onclick="closeLineExplain()">✕ Close</button>
+                </div>
+
             </div>
         </div>
-    </div>
 
         <!-- HINT TAB -->
         <div class="tab-panel" id="panel-hint">
@@ -653,7 +662,6 @@
         <!-- FLOW TAB -->
         <div class="tab-panel" id="panel-flow">
 
-            <!-- Action buttons -->
             <div style="display:flex;gap:8px;margin-bottom:12px;">
                 <button class="show-flow-btn" style="flex:1;" onclick="requestFlow()">
                     🔀 Generate Flow Diagram
@@ -663,19 +671,15 @@
                 </button>
             </div>
 
-            <!-- Loading -->
             <div class="loading" id="flow-loading" style="display:none;">
                 <div class="spinner"></div>
                 <div class="loading-text" id="flow-loading-text">Generating...</div>
             </div>
 
-            <!-- Flow diagram output -->
             <div id="mermaid-container" style="display:none;"></div>
 
-            <!-- Stepper output -->
             <div id="stepper-container" style="display:none;">
 
-                <!-- Step counter + controls -->
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                     <div style="font-size:11px;color:var(--vscode-descriptionForeground);" id="step-counter">Step 1 of 1</div>
                     <div style="display:flex;gap:6px;">
@@ -684,13 +688,11 @@
                     </div>
                 </div>
 
-                <!-- Current line -->
                 <div class="card" style="margin-bottom:8px;">
                     <div class="card-title blue">📍 Current Line</div>
                     <div style="font-family:monospace;font-size:13px;color:var(--vscode-foreground);margin-top:4px;" id="step-line">—</div>
                 </div>
 
-                <!-- Variables -->
                 <div class="card" style="margin-bottom:8px;">
                     <div class="card-title green">📦 Variables</div>
                     <div id="step-vars" style="margin-top:6px;">
@@ -698,15 +700,14 @@
                     </div>
                 </div>
 
-                <!-- Output so far -->
                 <div class="card" id="output-card" style="display:none;">
                     <div class="card-title amber">🖨️ Output</div>
                     <div style="font-family:monospace;font-size:11px;color:var(--vscode-foreground);margin-top:4px;white-space:pre-wrap;" id="step-output"></div>
                 </div>
 
             </div>
-
         </div>
+
         <!-- PROGRESS TAB -->
         <div class="tab-panel" id="panel-progress">
             <div class="loading" id="progress-loading">
@@ -715,7 +716,6 @@
             </div>
             <div id="progress-content" style="display:none;">
 
-                <!-- Major DSA Concepts learned -->
                 <div class="card">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                         <div class="card-title green" style="margin-bottom:0;">🧠 DSA Concepts Mastered</div>
@@ -724,18 +724,15 @@
                     <div id="progress-concepts"></div>
                 </div>
 
-                <!-- Current Code Issues -->
                 <div class="card" id="current-issues-card" style="display:none;">
                     <div class="card-title amber">⚠️ Current Code Issues</div>
                     <div id="current-issues-content" style="font-size:12px;line-height:1.6;color:var(--vscode-foreground);margin-top:6px;"></div>
                 </div>
 
-                <!-- No issues message -->
                 <div class="success-state" id="no-issues-msg" style="display:none;">
                     ✅ No issues in your current code!
                 </div>
 
-                <!-- Mistakes stats -->
                 <div class="card">
                     <div class="card-title amber">📊 Lifetime Stats</div>
                     <div style="display:flex;gap:12px;margin-top:6px;">
@@ -754,7 +751,6 @@
                     </div>
                 </div>
 
-                <!-- Session timer -->
                 <div class="card">
                     <div class="card-title blue">⏱️ Session</div>
                     <div style="font-size:24px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
@@ -769,11 +765,13 @@
                 </button>
             </div>
         </div>
-    </div>
+
+    </div><!-- end .content -->
 
     <script>
         const vscode = acquireVsCodeApi();
 
+        // ── Tab switching ─────────────────────────────────────────────────────
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -781,16 +779,20 @@
             document.getElementById('panel-' + tabName).classList.add('active');
         }
 
+        // Auto-load progress when Progress tab is clicked
+        const originalSwitchTab = switchTab;
+        window.switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'progress') { loadProgress(); }
+        };
+
+        // ── Flow / Trace ──────────────────────────────────────────────────────
         function requestFlow() {
-            // Clear previous diagram
             document.getElementById('mermaid-container').style.display = 'none';
             document.getElementById('mermaid-container').innerHTML = '';
             document.getElementById('stepper-container').style.display = 'none';
-
-            // Show loading
             document.getElementById('flow-loading').style.display = 'flex';
             document.getElementById('flow-loading-text').textContent = 'Generating flow diagram...';
-
             vscode.postMessage({ type: 'requestFlow' });
         }
 
@@ -798,135 +800,189 @@
             vscode.postMessage({ type: 'checkFix' });
         }
 
-        //deleted the old addEventListener for message and replaced with this one to handle multiple message types
-
+        // ── Loading state ─────────────────────────────────────────────────────
         function showLoading() {
             document.getElementById('explanation-loading').style.display = 'flex';
             document.getElementById('explanation-content').style.display = 'none';
         }
 
-        function showExplanation(data) {
-        document.getElementById('explanation-loading').style.display = 'none';
-        document.getElementById('explanation-content').style.display = 'block';
-        document.getElementById('explanation-text').textContent =
-            data.explanation || 'Analysing...';
+        // ── H3 NEW — renderClassificationPills ───────────────────────────────
+        function renderClassificationPills(data) {
+            const card       = document.getElementById('classification-card');
+            const algoRow    = document.getElementById('algo-row');
+            const paradigmRow= document.getElementById('paradigm-row');
+            const algoPills  = document.getElementById('algo-pills');
+            const paradigmPills = document.getElementById('paradigm-pills');
 
-        // FR17: Level badge
-        const badge = document.getElementById('level-badge');
-        if (data.level) {
-            badge.style.display = 'inline-block';
-            if (data.level === 'developer') {
-                badge.textContent = '⚡ Dev Mode';
-                badge.style.background = 'rgba(124,111,247,0.15)';
-                badge.style.color = '#7c6ff7';
-                badge.style.border = '1px solid rgba(124,111,247,0.3)';
-            } else if (data.level === 'beginner') {
-                badge.textContent = '🌱 Beginner';
-                badge.style.background = 'rgba(107,203,119,0.15)';
-                badge.style.color = '#6bcb77';
-                badge.style.border = '1px solid rgba(107,203,119,0.3)';
-            } else if (data.level === 'intermediate') {
-                badge.textContent = '⚡ Intermediate';
-                badge.style.background = 'rgba(255,217,61,0.15)';
-                badge.style.color = '#ffd93d';
-                badge.style.border = '1px solid rgba(255,217,61,0.3)';
+            const algorithms = data.algorithms || [];
+            const paradigms  = data.paradigms  || [];
+
+            // Nothing to show — hide the whole card
+            if (algorithms.length === 0 && paradigms.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // Helper to create a single pill element
+            function makePill(label, bg, color, borderColor) {
+                const span = document.createElement('span');
+                span.className = 'classification-pill';
+                span.textContent = label;
+                span.style.background   = bg;
+                span.style.color        = color;
+                span.style.border       = '1px solid ' + borderColor;
+                return span;
+            }
+
+            // Algorithm pills — purple tones
+            algoPills.innerHTML = '';
+            if (algorithms.length > 0) {
+                algorithms.forEach(algo => {
+                    algoPills.appendChild(
+                        makePill(algo, 'rgba(124,111,247,0.12)', '#a78bfa', 'rgba(124,111,247,0.35)')
+                    );
+                });
+                algoRow.style.display = 'block';
             } else {
-                badge.textContent = '🚀 Expert';
-                badge.style.background = 'rgba(124,111,247,0.15)';
-                badge.style.color = '#7c6ff7';
-                badge.style.border = '1px solid rgba(124,111,247,0.3)';
+                algoRow.style.display = 'none';
+            }
+
+            // Paradigm pills — teal tones
+            paradigmPills.innerHTML = '';
+            if (paradigms.length > 0) {
+                paradigms.forEach(p => {
+                    paradigmPills.appendChild(
+                        makePill(p, 'rgba(78,205,196,0.12)', '#4ecdc4', 'rgba(78,205,196,0.35)')
+                    );
+                });
+                paradigmRow.style.display = 'block';
+            } else {
+                paradigmRow.style.display = 'none';
+            }
+
+            card.style.display = 'block';
+        }
+        // ── END H3 NEW ───────────────────────────────────────────────────────
+
+        // ── showExplanation ───────────────────────────────────────────────────
+        function showExplanation(data) {
+            document.getElementById('explanation-loading').style.display = 'none';
+            document.getElementById('explanation-content').style.display = 'block';
+            document.getElementById('explanation-text').textContent =
+                data.explanation || 'Analysing...';
+
+            // Level badge
+            const badge = document.getElementById('level-badge');
+            if (data.level) {
+                badge.style.display = 'inline-block';
+                if (data.level === 'developer') {
+                    badge.textContent = '⚡ Dev Mode';
+                    badge.style.cssText += ';background:rgba(124,111,247,0.15);color:#7c6ff7;border:1px solid rgba(124,111,247,0.3);';
+                } else if (data.level === 'beginner') {
+                    badge.textContent = '🌱 Beginner';
+                    badge.style.cssText += ';background:rgba(107,203,119,0.15);color:#6bcb77;border:1px solid rgba(107,203,119,0.3);';
+                } else if (data.level === 'intermediate') {
+                    badge.textContent = '⚡ Intermediate';
+                    badge.style.cssText += ';background:rgba(255,217,61,0.15);color:#ffd93d;border:1px solid rgba(255,217,61,0.3);';
+                } else {
+                    badge.textContent = '🚀 Expert';
+                    badge.style.cssText += ';background:rgba(124,111,247,0.15);color:#7c6ff7;border:1px solid rgba(124,111,247,0.3);';
+                }
+            }
+
+            const isDevMode = currentMode === 'developer';
+
+            // H3 NEW — render classification pills (hidden in dev mode via CSS)
+            if (!isDevMode) {
+                renderClassificationPills(data);
+            } else {
+                document.getElementById('classification-card').style.display = 'none';
+            }
+
+            // Concepts
+            const conceptsCard = document.getElementById('concepts-card');
+            if (!isDevMode && data.concepts && data.concepts.length > 0) {
+                conceptsCard.style.display = 'block';
+                document.getElementById('concepts-list').innerHTML = data.concepts.map(c =>
+                    '<span class="concept-pill">' + c + '</span>'
+                ).join('');
+            } else {
+                conceptsCard.style.display = 'none';
+            }
+
+            // Error card
+            if (data.friendly_error) {
+                document.getElementById('error-card').style.display = 'block';
+                document.getElementById('error-text').textContent = data.friendly_error;
+            } else {
+                document.getElementById('error-card').style.display = 'none';
+            }
+
+            // Complexity — show in both modes
+            if (data.time_complexity && data.space_complexity) {
+                document.getElementById('complexity-card').style.display = 'block';
+                document.getElementById('time-notation').textContent  = data.time_complexity.notation  || '—';
+                document.getElementById('time-reason').textContent    = data.time_complexity.reason    || '';
+                document.getElementById('space-notation').textContent = data.space_complexity.notation || '—';
+                document.getElementById('space-reason').textContent   = data.space_complexity.reason   || '';
+            } else {
+                document.getElementById('complexity-card').style.display = 'none';
+            }
+
+            // Auto test + resources — hide in dev mode
+            if (isDevMode) {
+                document.getElementById('resources-card').style.display = 'none';
+                document.getElementById('autotest-card').style.display  = 'none';
             }
         }
 
-        // FR17: In developer mode — hide all extra cards
-        const isDevMode = currentMode === 'developer';
-
-        // Concepts
-        const conceptsCard = document.getElementById('concepts-card');
-        if (!isDevMode && data.concepts && data.concepts.length > 0) {
-            conceptsCard.style.display = 'block';
-            const list = document.getElementById('concepts-list');
-            list.innerHTML = data.concepts.map(c =>
-                '<span class="concept-pill">' + c + '</span>'
-            ).join('');
-        } else {
-            conceptsCard.style.display = 'none';
-        }
-
-        // Error card
-        if (data.friendly_error) {
-            document.getElementById('error-card').style.display = 'block';
-            document.getElementById('error-text').textContent = data.friendly_error;
-        } else {
-            document.getElementById('error-card').style.display = 'none';
-        }
-
-        // Complexity — show in both modes
-        if (data.time_complexity && data.space_complexity) {
-            document.getElementById('complexity-card').style.display = 'block';
-            document.getElementById('time-notation').textContent =
-                data.time_complexity.notation || '—';
-            document.getElementById('time-reason').textContent =
-                data.time_complexity.reason || '';
-            document.getElementById('space-notation').textContent =
-                data.space_complexity.notation || '—';
-            document.getElementById('space-reason').textContent =
-                data.space_complexity.reason || '';
-        } else {
-            document.getElementById('complexity-card').style.display = 'none';
-        }
-
-        // Auto test + resources — hide in dev mode
-        if (isDevMode) {
-            document.getElementById('resources-card').style.display = 'none';
-            document.getElementById('autotest-card').style.display = 'none';
-        }
-    }
-
+        // ── showHint ──────────────────────────────────────────────────────────
         function showHint(data) {
             if (data && data.has_mistake) {
-                document.getElementById('hint-empty').style.display = 'none';
+                document.getElementById('hint-empty').style.display   = 'none';
                 document.getElementById('hint-success').style.display = 'none';
                 document.getElementById('hint-content').style.display = 'block';
                 document.getElementById('hint-text').textContent = data.hint;
             } else {
                 document.getElementById('hint-content').style.display = 'none';
                 document.getElementById('hint-success').style.display = 'none';
-                document.getElementById('hint-empty').style.display = 'block';
+                document.getElementById('hint-empty').style.display   = 'block';
             }
         }
 
+        // ── showFlow ──────────────────────────────────────────────────────────
         function showFlow(mermaidCode) {
-        document.getElementById('flow-loading').style.display = 'none';
-        document.getElementById('stepper-container').style.display = 'none';
+            document.getElementById('flow-loading').style.display   = 'none';
+            document.getElementById('stepper-container').style.display = 'none';
 
-        const container = document.getElementById('mermaid-container');
-        container.style.display = 'block';
+            const container = document.getElementById('mermaid-container');
+            container.style.display = 'block';
 
-        if (!mermaidCode || mermaidCode.trim() === '') {
-            container.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">Could not generate flow diagram. Try again.</div>';
-            return;
+            if (!mermaidCode || mermaidCode.trim() === '') {
+                container.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">Could not generate flow diagram. Try again.</div>';
+                return;
+            }
+
+            container.innerHTML =
+                '<div style="font-size:11px;opacity:0.6;margin-bottom:8px;">📊 Mermaid Flow Diagram</div>' +
+                '<pre style="font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--vscode-foreground);">' +
+                escapeHtml(mermaidCode) + '</pre>' +
+                '<div style="font-size:10px;opacity:0.5;margin-top:8px;">💡 Copy into mermaid.live to see the visual diagram</div>';
         }
 
-        container.innerHTML =
-            '<div style="font-size:11px;opacity:0.6;margin-bottom:8px;">📊 Mermaid Flow Diagram</div>' +
-            '<pre style="font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--vscode-foreground);">' +
-            escapeHtml(mermaidCode) + '</pre>' +
-            '<div style="font-size:10px;opacity:0.5;margin-top:8px;">💡 Copy into mermaid.live to see the visual diagram</div>';
-    }
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
 
-    function escapeHtml(text) {
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-    }
-        // Load progress from backend
+        // ── Progress ──────────────────────────────────────────────────────────
         async function loadProgress() {
-            document.getElementById('progress-loading').style.display = 'flex';
+            document.getElementById('progress-loading').style.display  = 'flex';
             document.getElementById('progress-content').style.display = 'none';
 
-            // Reset session timer on refresh
+            // Reset session timer on every manual refresh
             sessionStart = Date.now();
 
             try {
@@ -938,7 +994,6 @@
                 document.getElementById('progress-content').style.display = 'block';
             }
 
-            // Also request current code mistakes
             vscode.postMessage({ type: 'getCurrentMistakes' });
         }
 
@@ -946,14 +1001,11 @@
             document.getElementById('progress-loading').style.display = 'none';
             document.getElementById('progress-content').style.display = 'block';
 
-            // Show unique major concepts count badge
             const uniqueBadge = document.getElementById('unique-major-badge');
             if (uniqueBadge) {
-                const uniqueCount = data.unique_major_concepts || 0;
-                uniqueBadge.textContent = uniqueCount + ' unique';
+                uniqueBadge.textContent = (data.unique_major_concepts || 0) + ' unique';
             }
 
-            // Render concept bars — now only major DSA concepts
             const conceptsEl = document.getElementById('progress-concepts');
             if (data.top_concepts && data.top_concepts.length > 0) {
                 const maxCount = data.top_concepts[0].count;
@@ -970,20 +1022,18 @@
                 conceptsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:8px 0;">Write code using DSA concepts (recursion, sorting, etc.) to track your progress!</div>';
             }
 
-            // Render stats
-            document.getElementById('total-mistakes').textContent = data.total_mistakes || 0;
-            document.getElementById('fixed-mistakes').textContent = data.fixed_mistakes || 0;
+            document.getElementById('total-mistakes').textContent    = data.total_mistakes    || 0;
+            document.getElementById('fixed-mistakes').textContent    = data.fixed_mistakes    || 0;
             document.getElementById('total-concepts-seen').textContent = data.total_concepts_seen || 0;
         }
 
-        // Handle current mistakes response from extension
         function showCurrentMistakes(data) {
-            const issuesCard = document.getElementById('current-issues-card');
-            const noIssuesMsg = document.getElementById('no-issues-msg');
+            const issuesCard    = document.getElementById('current-issues-card');
+            const noIssuesMsg   = document.getElementById('no-issues-msg');
             const issuesContent = document.getElementById('current-issues-content');
 
             if (data.has_mistake && data.mistake) {
-                issuesCard.style.display = 'block';
+                issuesCard.style.display  = 'block';
                 noIssuesMsg.style.display = 'none';
                 issuesContent.innerHTML =
                     '<div style="padding:6px 10px;background:rgba(255,107,107,0.08);border-radius:4px;border-left:3px solid #ff6b6b;">' +
@@ -994,17 +1044,15 @@
                     issuesContent.innerHTML += '<div style="margin-top:8px;font-size:10px;color:var(--vscode-descriptionForeground);">Current code uses: ' + data.major_concepts.join(', ') + '</div>';
                 }
             } else {
-                issuesCard.style.display = 'none';
+                issuesCard.style.display  = 'none';
                 noIssuesMsg.style.display = 'flex';
-                if (data.major_concepts && data.major_concepts.length > 0) {
-                    noIssuesMsg.innerHTML = '✅ No issues! Using: ' + data.major_concepts.join(', ');
-                } else {
-                    noIssuesMsg.innerHTML = '✅ No issues in your current code!';
-                }
+                noIssuesMsg.innerHTML = data.major_concepts && data.major_concepts.length > 0
+                    ? '✅ No issues! Using: ' + data.major_concepts.join(', ')
+                    : '✅ No issues in your current code!';
             }
         }
 
-        // Session timer
+        // ── Session timer ─────────────────────────────────────────────────────
         let sessionStart = Date.now();
         setInterval(() => {
             const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
@@ -1014,13 +1062,7 @@
             if (timerEl) { timerEl.textContent = `${mins}:${secs}`; }
         }, 1000);
 
-        // Auto-load progress when tab is clicked
-        const originalSwitchTab = switchTab;
-        window.switchTab = function(tabName) {
-            originalSwitchTab(tabName);
-            if (tabName === 'progress') { loadProgress(); }
-        };
-        // Unified message listener — handles all message types
+        // ── Unified message listener ──────────────────────────────────────────
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.type === 'explanation') {
@@ -1040,34 +1082,30 @@
             } else if (message.type === 'switchTab') {
                 switchTab(message.data);
             } else if (message.type === 'lineExplainLoading') {
-                // Show loading for line explain
                 const card = document.getElementById('line-explain-card');
                 card.style.display = 'block';
                 document.getElementById('line-explain-code').textContent =
                     'Line ' + message.data.lineNumber + ': ' + message.data.line;
                 document.getElementById('line-explain-loading').style.display = 'flex';
                 document.getElementById('line-explain-text').textContent = '';
-                // Switch to explain tab
                 switchTab('explanation');
-                // Scroll to top
                 document.querySelector('.content').scrollTop = 0;
             } else if (message.type === 'lineExplain') {
                 document.getElementById('line-explain-loading').style.display = 'none';
-                document.getElementById('line-explain-text').textContent =
-                    message.data.explanation;
+                document.getElementById('line-explain-text').textContent = message.data.explanation;
             } else if (message.type === 'currentMistakes') {
                 showCurrentMistakes(message.data);
             }
         });
 
-            function showAutoTests(data) {
-                // Hide in developer mode
-                if (currentMode === 'developer') {
-                    document.getElementById('autotest-card').style.display = 'none';
-                return; 
-                }
-                const card = document.getElementById('autotest-card');
-                const content = document.getElementById('autotest-content');
+        // ── Auto tests ────────────────────────────────────────────────────────
+        function showAutoTests(data) {
+            if (currentMode === 'developer') {
+                document.getElementById('autotest-card').style.display = 'none';
+                return;
+            }
+            const card    = document.getElementById('autotest-card');
+            const content = document.getElementById('autotest-content');
 
             if (!data.tests || data.tests.length === 0) {
                 card.style.display = 'none';
@@ -1091,14 +1129,13 @@
             `).join('');
         }
 
-    
+        // ── Recommendations ───────────────────────────────────────────────────
         function showRecommendations(data) {
-            // Hide in developer mode
             if (currentMode === 'developer') {
                 document.getElementById('resources-card').style.display = 'none';
-            return;
+                return;
             }
-            const card = document.getElementById('resources-card');
+            const card    = document.getElementById('resources-card');
             const content = document.getElementById('resources-content');
 
             if ((!data.leetcode || data.leetcode.length === 0) && !data.article) {
@@ -1109,20 +1146,17 @@
             card.style.display = 'block';
             let html = '';
 
-            // LeetCode problems
             if (data.leetcode && data.leetcode.length > 0) {
                 html += '<div class="resource-title">🟨 LeetCode Practice</div>';
                 data.leetcode.forEach(problem => {
-                    const diffClass = problem.difficulty === 'Easy'
-                        ? 'difficulty-easy' : 'difficulty-medium';
+                    const diffClass = problem.difficulty === 'Easy' ? 'difficulty-easy' : 'difficulty-medium';
                     html += `
                         <div class="resource-card" onclick="openLink('${problem.url}')">
                             <div class="resource-card-icon">💻</div>
                             <div class="resource-card-content">
                                 <div class="resource-card-title">${problem.title}</div>
                                 <div class="resource-card-meta">
-                                    <span class="${diffClass}">${problem.difficulty}</span>
-                                    · leetcode.com
+                                    <span class="${diffClass}">${problem.difficulty}</span> · leetcode.com
                                 </div>
                             </div>
                             <div style="font-size:10px;color:var(--vscode-descriptionForeground);">→</div>
@@ -1130,7 +1164,6 @@
                 });
             }
 
-            // Article
             if (data.article) {
                 html += '<div class="resource-title" style="margin-top:10px;">📖 Read More</div>';
                 html += `
@@ -1151,16 +1184,15 @@
             vscode.postMessage({ type: 'openLink', url: url });
         }
 
-        // FR7: Execution trace stepper
-        let traceSteps = [];
-        let currentStep = 0;
-        let codeLines = [];
+        // ── Execution trace stepper ───────────────────────────────────────────
+        let traceSteps   = [];
+        let currentStep  = 0;
 
         function requestTrace() {
             document.getElementById('flow-loading').style.display = 'flex';
             document.getElementById('flow-loading-text').textContent = 'Running code trace...';
-            document.getElementById('mermaid-container').style.display = 'none';
-            document.getElementById('stepper-container').style.display = 'none';
+            document.getElementById('mermaid-container').style.display  = 'none';
+            document.getElementById('stepper-container').style.display  = 'none';
             vscode.postMessage({ type: 'requestTrace' });
         }
 
@@ -1170,41 +1202,33 @@
             if (!data.success || data.steps.length === 0) {
                 document.getElementById('mermaid-container').style.display = 'block';
                 document.getElementById('mermaid-container').innerHTML =
-                    '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">' +
-                    '⚠️ ' + (data.error || 'No steps to trace. Make sure your code runs without errors.') +
-                    '</div>';
+                    '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">⚠️ ' +
+                    (data.error || 'No steps to trace. Make sure your code runs without errors.') + '</div>';
                 return;
             }
 
-            traceSteps = data.steps;
+            traceSteps  = data.steps;
             currentStep = 0;
-
-            // Store output
             window.traceOutput = data.output || '';
 
             document.getElementById('stepper-container').style.display = 'block';
             renderStep(currentStep);
-
-            // Switch to flow tab
             switchTab('flow');
         }
 
         function renderStep(index) {
             const step = traceSteps[index];
             if (!step) { return; }
-        
-            document.getElementById('step-counter').textContent =
-                `Step ${index + 1} of ${traceSteps.length}`;
 
-            // Show line number AND actual code content
+            document.getElementById('step-counter').textContent = `Step ${index + 1} of ${traceSteps.length}`;
+
             const lineContent = step.line_content || '';
             document.getElementById('step-line').innerHTML =
                 `<span style="color:var(--vscode-descriptionForeground);font-size:10px;">Line ${step.line}</span><br>` +
                 `<span style="font-family:monospace;font-size:12px;">${lineContent}</span>`;
 
-            // Variables
             const varsEl = document.getElementById('step-vars');
-            const vars = step.vars;
+            const vars   = step.vars;
             if (!vars || Object.keys(vars).length === 0) {
                 varsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No variables yet</div>';
             } else {
@@ -1213,7 +1237,6 @@
                 ).join('');
             }
 
-            // Show output on last step
             if (index === traceSteps.length - 1 && window.traceOutput) {
                 document.getElementById('output-card').style.display = 'block';
                 document.getElementById('step-output').textContent = window.traceOutput;
@@ -1223,19 +1246,14 @@
         }
 
         function nextStep() {
-            if (currentStep < traceSteps.length - 1) {
-                currentStep++;
-                renderStep(currentStep);
-            }
+            if (currentStep < traceSteps.length - 1) { currentStep++; renderStep(currentStep); }
         }
 
         function prevStep() {
-            if (currentStep > 0) {
-                currentStep--;
-                renderStep(currentStep);
-            }
+            if (currentStep > 0) { currentStep--; renderStep(currentStep); }
         }
-        // FR17: Mode toggle
+
+        // ── Mode toggle ───────────────────────────────────────────────────────
         let currentMode = 'learning';
 
         function handleModeToggle(isDevMode) {
@@ -1243,33 +1261,23 @@
             vscode.postMessage({ type: 'setMode', mode: currentMode });
 
             if (isDevMode) {
-                // Hide learning-only cards immediately
-                document.getElementById('concepts-card').style.display = 'none';
-                document.getElementById('resources-card').style.display = 'none';
-                document.getElementById('autotest-card').style.display = 'none';
-                document.getElementById('line-explain-card').style.display = 'none';
-
-                // Update label colors
-                document.getElementById('mode-learning-label').style.color =
-                    'var(--vscode-descriptionForeground)';
-                document.getElementById('mode-dev-label').style.color = '#7c6ff7';
-
+                document.getElementById('concepts-card').style.display        = 'none';
+                document.getElementById('resources-card').style.display       = 'none';
+                document.getElementById('autotest-card').style.display        = 'none';
+                document.getElementById('line-explain-card').style.display    = 'none';
+                document.getElementById('classification-card').style.display  = 'none'; // H3 NEW
+                document.getElementById('mode-learning-label').style.color    = 'var(--vscode-descriptionForeground)';
+                document.getElementById('mode-dev-label').style.color         = '#7c6ff7';
             } else {
-                // Switching back to learning mode
-                document.getElementById('mode-learning-label').style.color = '#6bcb77';
-                document.getElementById('mode-dev-label').style.color =
-                    'var(--vscode-descriptionForeground)';
-
-                // Show loading and request fresh analysis
-                document.getElementById('explanation-loading').style.display = 'flex';
-                document.getElementById('explanation-content').style.display = 'none';
-
-                // Tell extension to re-analyze with learning mode
+                document.getElementById('mode-learning-label').style.color    = '#6bcb77';
+                document.getElementById('mode-dev-label').style.color         = 'var(--vscode-descriptionForeground)';
+                document.getElementById('explanation-loading').style.display  = 'flex';
+                document.getElementById('explanation-content').style.display  = 'none';
                 vscode.postMessage({ type: 'reanalyze' });
             }
         }
 
-        // FR19: Line explain
+        // ── Line explain ──────────────────────────────────────────────────────
         function closeLineExplain() {
             document.getElementById('line-explain-card').style.display = 'none';
         }
