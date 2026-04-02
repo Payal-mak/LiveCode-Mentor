@@ -1473,30 +1473,36 @@
             const content = document.getElementById('autotest-content');
 
             if (!data.tests || data.tests.length === 0) {
-                card.style.display = 'none';
+                if (data.message) {
+                    card.style.display = 'block';
+                    content.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:4px 0;">ℹ️ ' + data.message + '</div>';
+                } else {
+                    card.style.display = 'none';
+                }
                 return;
             }
 
+            const hardcodedNote = data.input_style === 'hardcoded'
+                ? '<div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-bottom:8px;padding:4px 8px;background:rgba(78,205,196,0.08);border-radius:4px;">ℹ️ Hardcoded inputs detected — showing 1 result</div>'
+                : '';
+
             card.style.display = 'block';
-            // In showAutoTests() — replace the content.innerHTML = data.tests.map(...) block
-            content.innerHTML = data.tests.map(test => `
+            content.innerHTML = hardcodedNote + data.tests.map(test => {
+                const isLang = test.note === 'hardcoded' && test.output && test.output.includes('locally');
+                return `
                 <div class="test-row">
                     <div class="test-status">${test.success ? '✅' : '❌'}</div>
                     <div class="test-content">
-                        <div class="test-desc">${test.description}${
-                            test.note === 'hardcoded'
-                                ? ' <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(78,205,196,0.12);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);margin-left:4px;">hardcoded input</span>'
-                                : ''
-                        }</div>
-                        <div class="test-input">▶ ${test.input_code}</div>
-                        ${test.output
+                        <div class="test-desc">${test.description}</div>
+                        ${!isLang ? `<div class="test-input">▶ ${test.input_code}</div>` : ''}
+                        ${test.output && !test.error
                             ? `<div class="test-output">→ ${test.output}</div>`
                             : test.error
                             ? `<div class="test-error">⚠ ${test.error}</div>`
                             : ''}
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         // ── Recommendations ───────────────────────────────────────────────────
