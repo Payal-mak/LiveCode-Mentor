@@ -121,6 +121,7 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+    init_scores_table()
     print("[LiveCode Mentor] Database initialized ✅")
 
 
@@ -285,7 +286,103 @@ def get_stats() -> dict:
         "unique_major_concepts": unique_major,
     }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# GAMIFICATION — SCORING SYSTEM
+# ─────────────────────────────────────────────────────────────────────────────
+def init_scores_table():
+    conn = get_conn()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS scores (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                delta     INTEGER NOT NULL,
+                reason    TEXT NOT NULL,
+                total     INTEGER DEFAULT 0,
+                logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS badges (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                badge_id    TEXT UNIQUE NOT NULL,
+                earned_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
 
+def update_score(delta: int, reason: str) -> int:
+    """Add or subtract points. Returns new total."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT SUM(delta) FROM scores").fetchone()
+        current = row[0] or 0
+        new_total = max(0, current + delta)   # score never goes below 0
+        actual_delta = new_total - current    # real delta after floor
+        conn.execute(
+            "INSERT INTO scores (delta, reason, total) VALUES (?, ?, ?)",
+            (actual_delta, reason, new_total)
+        )
+        conn.commit()
+        return new_total
+    finally:
+        conn.close()
+
+def get_score() -> int:
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT SUM(delta) FROM scores").fetchone()
+        return max(0, row[0] or 0)
+    finally:
+        conn.close()
+
+def get_score_history(limit: int = 10) -> list:
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT delta, reason, total, logged_at FROM scores ORDER BY id DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+        return [{"delta": r[0], "reason": r[1], "total": r[2], "time": r[3]} for r in rows]
+    finally:
+        conn.close()
+
+def award_badge(badge_id: str) -> bool:
+    """Award a badge. Returns True if newly earned, False if already had it."""
+    conn = get_conn()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM badges WHERE badge_id = ?", (badge_id,)
+        ).fetchone()
+        if existing:
+            return False
+        conn.execute("INSERT INTO badges (badge_id) VALUES (?)", (badge_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def get_badges() -> list:
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT badge_id, earned_at FROM badges ORDER BY earned_at DESC"
+        ).fetchall()
+        return [{"badge_id": r[0], "earned_at": r[1]} for r in rows]
+    finally:
+        conn.close()
+
+def get_fix_count() -> int:
+    """How many bugs fixed total."""
+    conn = get_conn()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM mistake_history WHERE fixed = 1"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+        
 # ─────────────────────────────────────────────────────────────────────────────
 # SESSION LOGGING
 # ─────────────────────────────────────────────────────────────────────────────

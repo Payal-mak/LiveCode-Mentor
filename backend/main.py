@@ -1,19 +1,21 @@
-from database import init_db, save_concepts, save_mistake, get_stats, get_experience_level, log_session, MAJOR_DSA
-from tracer import trace_code
-from classifier import get_all_concepts
-import re   # add alongside existing imports if missing
-
-# Initialize DB on startup
-init_db()
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import ast
 import json
+import re
 from dotenv import load_dotenv
 from groq import Groq
+
+from database import (
+    init_db, save_concepts, save_mistake, get_stats,
+    get_experience_level, log_session, MAJOR_DSA,
+    update_score, get_score, get_score_history,
+    award_badge, get_badges, get_fix_count
+)
+from tracer import trace_code
+from classifier import get_all_concepts
 
 load_dotenv()
 
@@ -27,6 +29,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize DB after app is created
+init_db()
+
+#--------------------------------------------------------------------------------------------------------
+
 class CodePayload(BaseModel):
     code: str
     language: str = "python"
@@ -38,6 +45,13 @@ class HintPayload(BaseModel):
     code: str
     mistake_type: str
     language: str = "python"
+
+class LinePayload(BaseModel):
+    code: str
+    line: str
+    line_number: int
+    language: str = "python"
+    context: str = ""
 
 # FR5: AST-based concept detector
 class ConceptDetector(ast.NodeVisitor):
@@ -556,36 +570,39 @@ def health():
 async def analyze(payload: CodePayload):
     print(f"[LiveCode Mentor] Analyzing ({payload.trigger}) - {len(payload.code)} chars")
 
-    # FR4: Check syntax first
-    if payload.language == "python":
-        syntax_error = check_syntax(payload.code, payload.language)
-        if syntax_error:
-            print(f"[LiveCode Mentor] Syntax error: {syntax_error}")
-            friendly = await get_friendly_error(syntax_error, payload.code)
-            result = await get_explanation(
-                payload.code,
-                payload.language,
-                all_concepts,
-                payload.mode,
-                algorithms=algorithms,   # H4: pass H3 classifier output through
-                paradigms=paradigms
-            )
-
-
-    # FR5: Detect concepts using AST (basic detection)
+    # FR5: Detect concepts FIRST (needed by all branches below)
     basic_concepts = detect_concepts(payload.code)
     print(f"[LiveCode Mentor] Basic concepts: {basic_concepts}")
 
-    # H3: Deep DSA classification — paradigms + algorithm types + merged concept list
+    # H3: Deep DSA classification — paradigms + algorithm types + merged list
     classification = get_all_concepts(payload.code, payload.language, basic_concepts)
     algorithms   = classification["algorithms"]
     paradigms    = classification["paradigms"]
     all_concepts = classification["all_concepts"]
     print(f"[LiveCode Mentor] Algorithms: {algorithms} | Paradigms: {paradigms}")
 
-    # FR12: Save concepts to database — ONLY on save trigger to prevent inflation
+    # FR4: Check syntax AFTER concepts are defined
+    if payload.language == "python":
+        syntax_error = check_syntax(payload.code, payload.language)
+        if syntax_error:
+            print(f"[LiveCode Mentor] Syntax error: {syntax_error}")
+            friendly = await get_friendly_error(syntax_error, payload.code)
+            return {
+                "explanation": f"There's a syntax error on line {syntax_error['line']}.",
+                "concepts": [],
+                "has_error": True,
+                "friendly_error": friendly,
+                "mistake": None,
+                "algorithms": [],
+                "paradigms": [],
+                "time_complexity": None,
+                "space_complexity": None,
+                "level": "beginner"
+            }
+
+    # FR12: Save concepts to DB — only on save trigger
     if payload.trigger == 'save':
-        saved = save_concepts(all_concepts)   # now saves all_concepts (deep + basic merged)
+        saved = save_concepts(all_concepts)
         print(f"[LiveCode Mentor] Saved {saved} major concepts to DB")
     log_session("analyze", f"trigger:{payload.trigger}")
 
@@ -593,28 +610,37 @@ async def analyze(payload: CodePayload):
     mistake_result = detect_mistakes(payload.code)
     print(f"[LiveCode Mentor] Mistakes: {mistake_result}")
 
-    # FR12: Save mistake to database — ONLY on save trigger
+    # FR12: Save mistake to DB — only on save trigger
     if payload.trigger == 'save' and mistake_result["has_mistake"] and mistake_result["mistake"]:
         save_mistake(mistake_result["mistake"]["type"])
 
-    # FR3: Get AI explanation (pass all_concepts so Groq has full context)
+    # FR3: Get AI explanation
     try:
-        result = await get_explanation(payload.code, payload.language, all_concepts, payload.mode)
+        result = await get_explanation(
+            payload.code,
+            payload.language,
+            all_concepts,
+            payload.mode,
+            algorithms=algorithms,
+            paradigms=paradigms
+        )
         result["mistake"]    = mistake_result
-        result["algorithms"] = algorithms   # H3: e.g. ["Binary Search", "Recursion"]
-        result["paradigms"]  = paradigms    # H3: e.g. ["Procedural Programming"]
-        result["concepts"]   = all_concepts # replaces old basic concepts list
+        result["algorithms"] = algorithms
+        result["paradigms"]  = paradigms
         return result
     except Exception as e:
         print(f"[LiveCode Mentor] Error: {e}")
         return {
-            "explanation": "Could not analyze code. Please try again.",
-            "concepts":    all_concepts,
-            "algorithms":  algorithms,
-            "paradigms":   paradigms,
-            "has_error":   False,
+            "explanation":    "Could not analyze code. Please try again.",
+            "concepts":       all_concepts,
+            "has_error":      False,
             "friendly_error": None,
-            "mistake":     mistake_result
+            "mistake":        mistake_result,
+            "algorithms":     algorithms,
+            "paradigms":      paradigms,
+            "time_complexity": None,
+            "space_complexity": None,
+            "level":          "beginner"
         }
         
 # FR10: Generate hint for detected mistake
@@ -648,11 +674,27 @@ async def check_fix(payload: CodePayload):
     mistake_result = detect_mistakes(payload.code)
 
     if not mistake_result["has_mistake"]:
-        return {"fixed": True, "message": "Great job! The issue is resolved! 🎉"}
+        # Award points for fixing the bug
+        new_total = update_score(+10, "Fixed a bug ✓")
+        newly_earned = check_and_award_badges(new_total)
+        new_badge_details = [b for b in BADGE_DEFS if b["id"] in newly_earned]
+        return {
+            "fixed": True,
+            "message": "Great job! Issue resolved! 🎉",
+            "score_delta": +10,
+            "new_score": new_total,
+            "new_badges": new_badge_details
+        }
     else:
-        return {"fixed": False, "message": "Not quite yet — check the hint again!"}
+        return {
+            "fixed": False,
+            "message": "Not quite yet — check the hint again!",
+            "score_delta": 0,
+            "new_score": get_score(),
+            "new_badges": []
+        }
     
-    # FR6: Generate Mermaid.js flow diagram
+# FR6: Generate Mermaid.js flow diagram
 @app.post("/flow")
 async def generate_flow(payload: CodePayload):
     print(f"[LiveCode Mentor] Generating flow diagram...")
@@ -1271,3 +1313,133 @@ Keep explanation under 5 sentences."""
             "line_number": payload.line_number,
             "explanation": "Could not explain this line. Please try again."
         }
+        
+# ─────────────────────────────────────────────────────────────────────────────
+# GAMIFICATION ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ScorePayload(BaseModel):
+    delta: int
+    reason: str
+
+# Badge definitions — shared between backend and frontend
+BADGE_DEFS = [
+    {
+        "id": "first_fix",
+        "name": "Bug Squasher",
+        "icon": "🐛",
+        "desc": "Fixed your first bug without giving up"
+    },
+    {
+        "id": "no_paste_50",
+        "name": "Pure Coder",
+        "icon": "✍️",
+        "desc": "Typed 50+ chars in a row without copy-pasting"
+    },
+    {
+        "id": "dsa_3",
+        "name": "DSA Explorer",
+        "icon": "🧭",
+        "desc": "Used 3 different DSA concepts"
+    },
+    {
+        "id": "score_50",
+        "name": "Half Century",
+        "icon": "🌟",
+        "desc": "Reached 50 points"
+    },
+    {
+        "id": "score_100",
+        "name": "Century",
+        "icon": "💯",
+        "desc": "Reached 100 points"
+    },
+    {
+        "id": "fix_3",
+        "name": "Debugger",
+        "icon": "🔧",
+        "desc": "Fixed 3 bugs independently"
+    },
+    {
+        "id": "fix_10",
+        "name": "Bug Hunter",
+        "icon": "🎯",
+        "desc": "Fixed 10 bugs total"
+    },
+    {
+        "id": "dsa_5",
+        "name": "Algorithm Ace",
+        "icon": "🚀",
+        "desc": "Used 5 different DSA algorithms"
+    },
+]
+
+def check_and_award_badges(current_score: int) -> list:
+    """Check all badge conditions and award any newly earned badges."""
+    newly_earned = []
+
+    # Score-based badges
+    if current_score >= 50:
+        if award_badge("score_50"):
+            newly_earned.append("score_50")
+    if current_score >= 100:
+        if award_badge("score_100"):
+            newly_earned.append("score_100")
+
+    # Fix-based badges
+    fixes = get_fix_count()
+    if fixes >= 1:
+        if award_badge("first_fix"):
+            newly_earned.append("first_fix")
+    if fixes >= 3:
+        if award_badge("fix_3"):
+            newly_earned.append("fix_3")
+    if fixes >= 10:
+        if award_badge("fix_10"):
+            newly_earned.append("fix_10")
+
+    # DSA concept badges
+    stats = get_stats()
+    unique_dsa = stats.get("unique_major_concepts", 0)
+    if unique_dsa >= 3:
+        if award_badge("dsa_3"):
+            newly_earned.append("dsa_3")
+    if unique_dsa >= 5:
+        if award_badge("dsa_5"):
+            newly_earned.append("dsa_5")
+
+    return newly_earned
+
+@app.post("/score")
+async def add_score(payload: ScorePayload):
+    new_total = update_score(payload.delta, payload.reason)
+    newly_earned = check_and_award_badges(new_total)
+
+    # Find badge details for newly earned
+    new_badge_details = [
+        b for b in BADGE_DEFS if b["id"] in newly_earned
+    ]
+
+    print(f"[LiveCode Mentor] Score update: {payload.delta:+d} ({payload.reason}) → total={new_total}")
+    return {
+        "score": new_total,
+        "delta": payload.delta,
+        "reason": payload.reason,
+        "new_badges": new_badge_details
+    }
+
+@app.get("/score")
+async def get_current_score():
+    score = get_score()
+    newly_earned = check_and_award_badges(score)
+    earned_badge_ids = [b["badge_id"] for b in get_badges()]
+    badge_details = [
+        {**b, "earned": b["id"] in earned_badge_ids}
+        for b in BADGE_DEFS
+    ]
+    return {
+        "score": score,
+        "badges": badge_details,
+        "history": get_score_history(5),
+        "new_badges": [b for b in badge_details if b["id"] in newly_earned]
+    }

@@ -8,6 +8,63 @@ let sidebarProvider: SidebarProvider;
 let lastMistake: { type: string; description: string } | null = null;
 let currentMode: string = 'learning'; // FR17: track mode
 
+
+// GAMIFICATION: Track copy-paste
+let lastCodeLength = 0;
+let consecutiveTypedChars = 0;
+
+// Copy-paste detection
+vscode.workspace.onDidChangeTextDocument((event) => {
+    if (event.document.uri.scheme !== 'file') { return; }
+
+    const newLength = event.document.getText().length;
+    const change = event.contentChanges[0];
+
+    if (change && change.text.length > 0) {
+        const addedLength = change.text.length;
+
+        // Copy-paste = large chunk added at once (50+ chars)
+        if (addedLength >= 50 && !change.text.includes('\n\n')) {
+            consecutiveTypedChars = 0;
+            // Penalize copy-paste
+            axios.post(`${BACKEND_URL}/score`, {
+                delta: -5,
+                reason: "copy-paste detected"
+            }).then(res => {
+                sidebarProvider.sendMessage('scorePenalty', {
+                    message: `📋 Try typing this yourself! -5 pts`,
+                    score: res.data.score
+                });
+            }).catch(() => {});
+
+        } else {
+            // Normal typing
+            consecutiveTypedChars += addedLength;
+
+            // Reward 50 consecutive typed chars
+            if (consecutiveTypedChars >= 50) {
+                consecutiveTypedChars = 0;
+                axios.post(`${BACKEND_URL}/score`, {
+                    delta: +3,
+                    reason: "typed 50+ chars without copy-paste"
+                }).then(res => {
+                    sidebarProvider.sendMessage('scoreReward', {
+                        message: `✍️ Great typing! +3 pts`,
+                        score: res.data.score,
+                        new_badges: res.data.new_badges || []
+                    });
+                    // Award pure-coder badge
+                    if (res.data.new_badges && res.data.new_badges.length > 0) {
+                        sidebarProvider.sendMessage('newBadge', res.data.new_badges[0]);
+                    }
+                }).catch(() => {});
+            }
+        }
+    }
+
+    lastCodeLength = newLength;
+});
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('LiveCode Mentor is now active!');
 
@@ -80,12 +137,20 @@ export function activate(context: vscode.ExtensionContext) {
                 if (res.data.fixed) {
                     lastMistake = null;
                     sidebarProvider.sendMessage('hint', { has_mistake: false });
+                    sidebarProvider.sendMessage('scoreReward', {
+                        message: `🐛 Bug fixed! +10 pts`,
+                        score: res.data.new_score,
+                        new_badges: res.data.new_badges || []
+                    });
+                    if (res.data.new_badges && res.data.new_badges.length > 0) {
+                        sidebarProvider.sendMessage('newBadge', res.data.new_badges[0]);
+                    }
                     vscode.window.showInformationMessage('Great job! Issue resolved! 🎉');
                 } else {
                     vscode.window.showWarningMessage('Not quite — check the hint again!');
                 }
             } catch (e) {
-                console.error(e);
+                console.error('[LiveCode Mentor] Check fix error:', e);
             }
         })
     );
@@ -154,12 +219,20 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Health check
     axios.get(`${BACKEND_URL}/health`)
-        .then(res => {
-            vscode.window.showInformationMessage(`LiveCode Mentor: ${res.data.status}`);
-        })
-        .catch(() => {
-            vscode.window.showErrorMessage('LiveCode Mentor: Backend not reachable!');
+    .then(res => {
+        vscode.window.showInformationMessage(`LiveCode Mentor: ${res.data.status}`);
+        // Fetch initial score
+        return axios.get(`${BACKEND_URL}/score`);
+    })
+    .then(res => {
+        sidebarProvider.sendMessage('scoreInit', {
+            score: res.data.score,
+            badges: res.data.badges
         });
+    })
+    .catch(() => {
+        vscode.window.showErrorMessage('LiveCode Mentor: Backend not reachable!');
+    });
 
     // FR1: Monitor changes
     const changeDisposable = vscode.workspace.onDidChangeTextDocument((event) => {

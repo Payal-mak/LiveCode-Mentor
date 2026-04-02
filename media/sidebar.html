@@ -520,6 +520,51 @@
             white-space: nowrap;
             margin: 2px 3px 2px 0;
         }
+        /* Score + penalty toast */
+        .score-toast {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 9999;
+            pointer-events: none;
+            animation: toastFade 2.5s ease forwards;
+            white-space: nowrap;
+        }
+
+        .toast-reward  { background: rgba(107,203,119,0.95); color: #1a1a1a; }
+        .toast-penalty { background: rgba(255,107,107,0.95); color: #1a1a1a; }
+        .toast-badge   { background: rgba(255,217,61,0.95);  color: #1a1a1a; }
+
+        @keyframes toastFade {
+            0%   { opacity: 0; transform: translateX(-50%) translateY(12px); }
+            15%  { opacity: 1; transform: translateX(-50%) translateY(0);    }
+            75%  { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+        }
+
+        /* Badge pill */
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            padding: 3px 8px;
+            background: rgba(255,217,61,0.12);
+            border: 1px solid rgba(255,217,61,0.3);
+            border-radius: 10px;
+            color: #ffd93d;
+            margin: 3px;
+        }
+
+        .badge-pill.locked {
+            opacity: 0.35;
+            filter: grayscale(1);
+        }
     </style>
 </head>
 <body>
@@ -527,16 +572,17 @@
     <div class="header">
         <span class="header-icon">🎓</span>
         <span class="header-title">LIVECODE MENTOR</span>
-        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+            <div id="score-display" style="font-size:12px;font-weight:600;color:#ffd93d;cursor:pointer;" onclick="switchTab('progress')" title="View your progress">
+                ⭐ 0 pts
+            </div>
             <div class="mode-toggle">
-                <span class="mode-label" id="mode-learning-label"
-                    style="font-size:9px;color:#6bcb77;font-weight:600;">🎓 Learn</span>
+                <span class="mode-label" id="mode-learning-label" style="font-size:9px;color:#6bcb77;font-weight:600;">🎓</span>
                 <label class="switch">
                     <input type="checkbox" id="modeToggle" onchange="handleModeToggle(this.checked)">
                     <span class="slider"></span>
                 </label>
-                <span class="mode-label" id="mode-dev-label"
-                    style="font-size:9px;color:var(--vscode-descriptionForeground);font-weight:600;">⚡ Dev</span>
+                <span class="mode-label" id="mode-dev-label" style="font-size:9px;color:var(--vscode-descriptionForeground);font-weight:600;">⚡</span>
             </div>
             <div class="status-dot"></div>
         </div>
@@ -714,31 +760,30 @@
                 <div class="spinner"></div>
                 <div class="loading-text">Loading your progress...</div>
             </div>
-            <div id="progress-content" style="display:none;">
+                <div id="progress-content" style="display:none;">
 
-                <div class="card">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                        <div class="card-title green" style="margin-bottom:0;">🧠 DSA Concepts Mastered</div>
-                        <span id="unique-major-badge" style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(107,203,119,0.15);color:#6bcb77;border:1px solid rgba(107,203,119,0.3);">0 unique</span>
+                <!-- Score card -->
+                <div class="card" style="text-align:center;margin-bottom:12px;">
+                    <div style="font-size:36px;font-weight:700;color:#ffd93d;line-height:1;" id="big-score">0</div>
+                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Total Points</div>
+                    <div id="last-action" style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:6px;min-height:14px;"></div>
+                </div>
+
+                <!-- Badges -->
+                <div class="card" style="margin-bottom:12px;">
+                    <div class="card-title" style="color:#ffd93d;">🏆 Badges</div>
+                    <div id="badges-container" style="margin-top:8px;">
+                        <div style="font-size:12px;color:var(--vscode-descriptionForeground);">Loading badges...</div>
                     </div>
-                    <div id="progress-concepts"></div>
                 </div>
 
-                <div class="card" id="current-issues-card" style="display:none;">
-                    <div class="card-title amber">⚠️ Current Code Issues</div>
-                    <div id="current-issues-content" style="font-size:12px;line-height:1.6;color:var(--vscode-foreground);margin-top:6px;"></div>
-                </div>
-
-                <div class="success-state" id="no-issues-msg" style="display:none;">
-                    ✅ No issues in your current code!
-                </div>
-
-                <div class="card">
-                    <div class="card-title amber">📊 Lifetime Stats</div>
+                <!-- Mistakes tracker -->
+                <div class="card" style="margin-bottom:12px;">
+                    <div class="card-title amber">⚠️ Mistakes Tracker</div>
                     <div style="display:flex;gap:12px;margin-top:6px;">
                         <div style="flex:1;text-align:center;padding:10px;background:rgba(255,107,107,0.1);border-radius:6px;border:1px solid rgba(255,107,107,0.2);">
                             <div style="font-size:22px;font-weight:600;color:#ff6b6b;" id="total-mistakes">0</div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Mistakes</div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Detected</div>
                         </div>
                         <div style="flex:1;text-align:center;padding:10px;background:rgba(107,203,119,0.1);border-radius:6px;border:1px solid rgba(107,203,119,0.2);">
                             <div style="font-size:22px;font-weight:600;color:#6bcb77;" id="fixed-mistakes">0</div>
@@ -746,23 +791,25 @@
                         </div>
                         <div style="flex:1;text-align:center;padding:10px;background:rgba(78,205,196,0.1);border-radius:6px;border:1px solid rgba(78,205,196,0.2);">
                             <div style="font-size:22px;font-weight:600;color:#4ecdc4;" id="total-concepts-seen">0</div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">DSA Uses</div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">DSA Concepts</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-title blue">⏱️ Session</div>
-                    <div style="font-size:24px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
-                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Time spent coding this session</div>
+                <!-- DSA Concepts -->
+                <div class="card" style="margin-bottom:12px;">
+                    <div class="card-title green">🧠 DSA Concepts Mastered</div>
+                    <div id="progress-concepts" style="margin-top:8px;"></div>
                 </div>
 
-                <button class="btn btn-primary" onclick="loadProgress()" style="margin-top:4px;">
-                    🔄 Refresh Stats
-                </button>
-                <button class="btn" onclick="resetStats()" style="margin-top:6px;background:transparent;border:1px solid rgba(255,107,107,0.3);color:#ff6b6b;font-size:11px;">
-                    🗑️ Reset All Stats
-                </button>
+                <!-- Session timer -->
+                <div class="card" style="margin-bottom:12px;">
+                    <div class="card-title blue">⏱️ Session</div>
+                    <div style="font-size:24px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
+                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Time spent coding today</div>
+                </div>
+
+                <button class="btn btn-primary" onclick="loadProgress()">🔄 Refresh Stats</button>
             </div>
         </div>
 
@@ -979,24 +1026,30 @@
 
         // ── Progress ──────────────────────────────────────────────────────────
         async function loadProgress() {
-            document.getElementById('progress-loading').style.display  = 'flex';
+            sessionStart = Date.now();
+            document.getElementById('progress-loading').style.display = 'flex';
             document.getElementById('progress-content').style.display = 'none';
 
-            // Reset session timer on every manual refresh
-            sessionStart = Date.now();
-
             try {
-                const response = await fetch('http://localhost:8000/stats');
-                const data = await response.json();
-                renderProgress(data);
+                const [statsResp, scoreResp] = await Promise.all([
+                    fetch('http://localhost:8000/stats'),
+                    fetch('http://localhost:8000/score')
+                ]);
+                const stats = await statsResp.json();
+                const scoreData = await scoreResp.json();
+
+                renderProgress(stats);
+                updateScoreDisplay(scoreData.score);
+                renderBadges(scoreData.badges);
+
+                const bigScore = document.getElementById('big-score');
+                if (bigScore) { bigScore.textContent = scoreData.score; }
+
             } catch (e) {
                 document.getElementById('progress-loading').style.display = 'none';
                 document.getElementById('progress-content').style.display = 'block';
             }
-
-            vscode.postMessage({ type: 'getCurrentMistakes' });
         }
-
         function renderProgress(data) {
             document.getElementById('progress-loading').style.display = 'none';
             document.getElementById('progress-content').style.display = 'block';
@@ -1075,12 +1128,10 @@
                 showLoading();
             } else if (message.type === 'recommendations') {
                 showRecommendations(message.data);
-            } else if (message.type === 'trace') {
-                showTrace(message.data);
             } else if (message.type === 'autotest') {
                 showAutoTests(message.data);
-            } else if (message.type === 'switchTab') {
-                switchTab(message.data);
+            } else if (message.type === 'trace') {
+                showTrace(message.data);
             } else if (message.type === 'lineExplainLoading') {
                 const card = document.getElementById('line-explain-card');
                 card.style.display = 'block';
@@ -1093,8 +1144,26 @@
             } else if (message.type === 'lineExplain') {
                 document.getElementById('line-explain-loading').style.display = 'none';
                 document.getElementById('line-explain-text').textContent = message.data.explanation;
-            } else if (message.type === 'currentMistakes') {
-                showCurrentMistakes(message.data);
+            } else if (message.type === 'switchTab') {
+                switchTab(message.data);
+            } else if (message.type === 'scoreInit') {
+                updateScoreDisplay(message.data.score);
+                renderBadges(message.data.badges);
+            } else if (message.type === 'scoreReward') {
+                updateScoreDisplay(message.data.score);
+                showToast(message.data.message, 'reward');
+                if (message.data.new_badges && message.data.new_badges.length > 0) {
+                    setTimeout(() => {
+                        showToast('🏆 New badge: ' + message.data.new_badges[0].name + ' ' + message.data.new_badges[0].icon, 'badge');
+                    }, 1000);
+                }
+                const lastAction = document.getElementById('last-action');
+                if (lastAction) { lastAction.textContent = message.data.message; }
+            } else if (message.type === 'scorePenalty') {
+                updateScoreDisplay(message.data.score);
+                showToast(message.data.message, 'penalty');
+            } else if (message.type === 'newBadge') {
+                showToast('🏆 Badge unlocked: ' + message.data.name + ' ' + message.data.icon, 'badge');
             }
         });
 
@@ -1299,6 +1368,47 @@
                 console.error('Reset stats error:', e);
             }
         }
+        // ── GAMIFICATION ──────────────────────────────────────────────────────────────
+
+        function showToast(message, type) {
+            // Remove any existing toasts
+            document.querySelectorAll('.score-toast').forEach(t => t.remove());
+            const toast = document.createElement('div');
+            toast.className = `score-toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2600);
+        }
+
+        function updateScoreDisplay(score) {
+            document.getElementById('score-display').textContent = '⭐ ' + score + ' pts';
+            const bigScore = document.getElementById('big-score');
+            if (bigScore) { bigScore.textContent = score; }
+        }
+
+        function renderBadges(badges) {
+            const container = document.getElementById('badges-container');
+            if (!container) { return; }
+            if (!badges || badges.length === 0) {
+                container.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No badges yet — keep coding!</div>';
+                return;
+            }
+            container.innerHTML = badges.map(b =>
+                `<span class="badge-pill ${b.earned ? '' : 'locked'}" title="${b.desc}">
+                    ${b.icon} ${b.name}
+                </span>`
+            ).join('');
+        }
+
+        // ── Handle gamification messages ─────────────────────────────────────────────
+        // Add these inside your main window.addEventListener('message') handler:
+
+        // IN YOUR EXISTING MESSAGE LISTENER, add these cases:
+        // } else if (message.type === 'scoreInit') {
+        //     updateScoreDisplay(message.data.score);
+        //     renderBadges(message.data.badges);
+        // } else if (message.type === 'scoreReward') { ... }
+        // etc.
     </script>
 
 </body>
