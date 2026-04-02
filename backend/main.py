@@ -1214,17 +1214,32 @@ Return ONLY valid JSON. No markdown. No explanation."""
         # For dynamic/none:    Groq returns 3, cap at 3
         tests_to_run = test_data.get("tests", [])[:num_tests_expected]
 
+        # Run baseline first to get original output
+        baseline_result = trace_code(payload.code.rstrip(), max_steps=100, mock_inputs=mock_inputs)
+        baseline_output = baseline_result.get("output", "").strip()
+
         results = []
         for test in tests_to_run:
-            full_code   = payload.code.rstrip() + "\n" + test["input_code"]
-            trace_result = trace_code(full_code, max_steps=100)
+            full_code = payload.code.rstrip() + "\n" + test["input_code"]
+            trace_result = trace_code(full_code, max_steps=100, mock_inputs=mock_inputs)
+            full_output = trace_result.get("output", "").strip()
+
+            # Subtract baseline output — only keep what the test line added
+            if baseline_output and full_output.startswith(baseline_output):
+                test_only_output = full_output[len(baseline_output):].strip()
+            elif baseline_output and baseline_output in full_output:
+                # baseline might have trailing newline differences
+                test_only_output = full_output.replace(baseline_output, "", 1).strip()
+            else:
+                test_only_output = full_output
+
             results.append({
                 "description": test.get("description", ""),
                 "input_code":  test["input_code"],
-                "output":      trace_result.get("output", "").strip(),
+                "output":      test_only_output,
                 "success":     trace_result["success"],
                 "error":       trace_result.get("error") or None,
-                "note":        input_style   # H5: "hardcoded" | "dynamic" | "none"
+                "note":        input_style
             })
 
         print(f"[LiveCode Mentor] Auto tests done: {len(results)} ran (style={input_style})")
