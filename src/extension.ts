@@ -90,6 +90,51 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // FR19: Explain This Line — right-click context menu command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('livecode-mentor.explainLine', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage('Open a code file first!');
+                return;
+            }
+
+            // Fix: use active cursor line, not selection
+            const lineIndex = editor.selection.active.line;
+            const lineContent = editor.document.lineAt(lineIndex).text;
+
+            // Skip empty lines and comment-only lines
+            if (!lineContent.trim() || lineContent.trim().startsWith('#') || lineContent.trim().startsWith('//')) {
+                vscode.window.showInformationMessage('Place cursor on a code line (not a comment).');
+                return;
+            }
+
+            // Always show loading immediately so user knows it's working
+            sidebarProvider.sendMessage('lineExplainLoading', {
+                line: lineContent.trim(),
+                lineNumber: lineIndex + 1
+            });
+
+            // Switch to explain tab automatically
+            sidebarProvider.sendMessage('switchTab', 'explanation');
+
+            try {
+                const res = await axios.post(`${BACKEND_URL}/explain-line`, {
+                    line: lineContent.trim(),
+                    line_number: lineIndex + 1,
+                    language: editor.document.languageId,
+                    code: editor.document.getText()
+                });
+                sidebarProvider.sendMessage('lineExplain', res.data);
+            } catch (e) {
+                console.error('[LiveCode Mentor] Explain line error:', e);
+                sidebarProvider.sendMessage('lineExplain', {
+                    explanation: 'Could not explain this line. Make sure the backend is running.'
+                });
+            }
+        })
+    );
+
     // Health check
     axios.get(`${BACKEND_URL}/health`)
         .then(res => {
