@@ -32,6 +32,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 vscode.commands.executeCommand('livecode-mentor.setMode', message.mode);
             } else if (message.type === 'reanalyze') {
                 vscode.commands.executeCommand('livecode-mentor.reanalyze');
+            } else if (message.type === 'switchTab') {
+                // switchTab is handled in sidebar.html JS — just pass it through
             }
         });
     }
