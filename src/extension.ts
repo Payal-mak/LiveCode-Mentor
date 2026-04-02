@@ -281,7 +281,7 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
         // Learning mode only features
         if (currentMode === 'learning') {
             // FR14 + FR15: Recommendations
-            if (res.data.concepts && res.data.concepts.length > 0) {
+            if (!res.data.has_error && res.data.concepts && res.data.concepts.length > 0) {
                 try {
                     const recRes = await axios.post(`${BACKEND_URL}/recommendations`, {
                         code, language, trigger
@@ -292,24 +292,25 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
                 }
             }
 
-            // FR9 + FR10: Hints
+            // FR9 + FR10: ALWAYS check for mistakes, even if there's an error
+            // (off-by-one is a logic mistake, not a syntax error)
             if (res.data.mistake && res.data.mistake.has_mistake) {
                 lastMistake = res.data.mistake.mistake;
                 try {
                     const hintRes = await axios.post(`${BACKEND_URL}/hint`, {
-                        code, language,
+                        code,
+                        language,
                         mistake_type: res.data.mistake.mistake.description
                     });
                     sidebarProvider.sendMessage('hint', hintRes.data);
+                    // Auto-switch to hint tab when mistake detected
+                    sidebarProvider.sendMessage('switchTab', 'hint');
                 } catch (e) {
                     console.error('[LiveCode Mentor] Hint error:', e);
                 }
             } else {
                 sidebarProvider.sendMessage('hint', { has_mistake: false });
             }
-        } else {
-            sidebarProvider.sendMessage('hint', { has_mistake: false });
-            sidebarProvider.sendMessage('recommendations', { leetcode: [], article: null });
         }
 
         // FR8: Auto test on save only
