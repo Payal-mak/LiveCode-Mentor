@@ -715,19 +715,33 @@
             </div>
             <div id="progress-content" style="display:none;">
 
-                <!-- Concepts learned -->
+                <!-- Major DSA Concepts learned -->
                 <div class="card">
-                    <div class="card-title green">🧠 Top Concepts Learned</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <div class="card-title green" style="margin-bottom:0;">🧠 DSA Concepts Mastered</div>
+                        <span id="unique-major-badge" style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(107,203,119,0.15);color:#6bcb77;border:1px solid rgba(107,203,119,0.3);">0 unique</span>
+                    </div>
                     <div id="progress-concepts"></div>
+                </div>
+
+                <!-- Current Code Issues -->
+                <div class="card" id="current-issues-card" style="display:none;">
+                    <div class="card-title amber">⚠️ Current Code Issues</div>
+                    <div id="current-issues-content" style="font-size:12px;line-height:1.6;color:var(--vscode-foreground);margin-top:6px;"></div>
+                </div>
+
+                <!-- No issues message -->
+                <div class="success-state" id="no-issues-msg" style="display:none;">
+                    ✅ No issues in your current code!
                 </div>
 
                 <!-- Mistakes stats -->
                 <div class="card">
-                    <div class="card-title amber">⚠️ Mistakes Tracker</div>
+                    <div class="card-title amber">📊 Lifetime Stats</div>
                     <div style="display:flex;gap:12px;margin-top:6px;">
                         <div style="flex:1;text-align:center;padding:10px;background:rgba(255,107,107,0.1);border-radius:6px;border:1px solid rgba(255,107,107,0.2);">
                             <div style="font-size:22px;font-weight:600;color:#ff6b6b;" id="total-mistakes">0</div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Detected</div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Mistakes</div>
                         </div>
                         <div style="flex:1;text-align:center;padding:10px;background:rgba(107,203,119,0.1);border-radius:6px;border:1px solid rgba(107,203,119,0.2);">
                             <div style="font-size:22px;font-weight:600;color:#6bcb77;" id="fixed-mistakes">0</div>
@@ -735,7 +749,7 @@
                         </div>
                         <div style="flex:1;text-align:center;padding:10px;background:rgba(78,205,196,0.1);border-radius:6px;border:1px solid rgba(78,205,196,0.2);">
                             <div style="font-size:22px;font-weight:600;color:#4ecdc4;" id="total-concepts-seen">0</div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Concepts</div>
+                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">DSA Uses</div>
                         </div>
                     </div>
                 </div>
@@ -744,11 +758,14 @@
                 <div class="card">
                     <div class="card-title blue">⏱️ Session</div>
                     <div style="font-size:24px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
-                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Time spent coding today</div>
+                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Time spent coding this session</div>
                 </div>
 
                 <button class="btn btn-primary" onclick="loadProgress()" style="margin-top:4px;">
                     🔄 Refresh Stats
+                </button>
+                <button class="btn" onclick="resetStats()" style="margin-top:6px;background:transparent;border:1px solid rgba(255,107,107,0.3);color:#ff6b6b;font-size:11px;">
+                    🗑️ Reset All Stats
                 </button>
             </div>
         </div>
@@ -909,6 +926,9 @@
             document.getElementById('progress-loading').style.display = 'flex';
             document.getElementById('progress-content').style.display = 'none';
 
+            // Reset session timer on refresh
+            sessionStart = Date.now();
+
             try {
                 const response = await fetch('http://localhost:8000/stats');
                 const data = await response.json();
@@ -917,13 +937,23 @@
                 document.getElementById('progress-loading').style.display = 'none';
                 document.getElementById('progress-content').style.display = 'block';
             }
+
+            // Also request current code mistakes
+            vscode.postMessage({ type: 'getCurrentMistakes' });
         }
 
         function renderProgress(data) {
             document.getElementById('progress-loading').style.display = 'none';
             document.getElementById('progress-content').style.display = 'block';
 
-            // Render concept bars
+            // Show unique major concepts count badge
+            const uniqueBadge = document.getElementById('unique-major-badge');
+            if (uniqueBadge) {
+                const uniqueCount = data.unique_major_concepts || 0;
+                uniqueBadge.textContent = uniqueCount + ' unique';
+            }
+
+            // Render concept bars — now only major DSA concepts
             const conceptsEl = document.getElementById('progress-concepts');
             if (data.top_concepts && data.top_concepts.length > 0) {
                 const maxCount = data.top_concepts[0].count;
@@ -937,13 +967,41 @@
                     </div>
                 `).join('');
             } else {
-                conceptsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:8px 0;">Start coding to see your concepts here!</div>';
+                conceptsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:8px 0;">Write code using DSA concepts (recursion, sorting, etc.) to track your progress!</div>';
             }
 
             // Render stats
             document.getElementById('total-mistakes').textContent = data.total_mistakes || 0;
             document.getElementById('fixed-mistakes').textContent = data.fixed_mistakes || 0;
             document.getElementById('total-concepts-seen').textContent = data.total_concepts_seen || 0;
+        }
+
+        // Handle current mistakes response from extension
+        function showCurrentMistakes(data) {
+            const issuesCard = document.getElementById('current-issues-card');
+            const noIssuesMsg = document.getElementById('no-issues-msg');
+            const issuesContent = document.getElementById('current-issues-content');
+
+            if (data.has_mistake && data.mistake) {
+                issuesCard.style.display = 'block';
+                noIssuesMsg.style.display = 'none';
+                issuesContent.innerHTML =
+                    '<div style="padding:6px 10px;background:rgba(255,107,107,0.08);border-radius:4px;border-left:3px solid #ff6b6b;">' +
+                    '<div style="font-size:11px;color:#ff6b6b;font-weight:600;margin-bottom:2px;">' + (data.mistake.type || 'Issue') + '</div>' +
+                    '<div style="font-size:12px;">' + (data.mistake.description || 'Unknown issue') + '</div>' +
+                    '</div>';
+                if (data.major_concepts && data.major_concepts.length > 0) {
+                    issuesContent.innerHTML += '<div style="margin-top:8px;font-size:10px;color:var(--vscode-descriptionForeground);">Current code uses: ' + data.major_concepts.join(', ') + '</div>';
+                }
+            } else {
+                issuesCard.style.display = 'none';
+                noIssuesMsg.style.display = 'flex';
+                if (data.major_concepts && data.major_concepts.length > 0) {
+                    noIssuesMsg.innerHTML = '✅ No issues! Using: ' + data.major_concepts.join(', ');
+                } else {
+                    noIssuesMsg.innerHTML = '✅ No issues in your current code!';
+                }
+            }
         }
 
         // Session timer
@@ -997,6 +1055,8 @@
                 document.getElementById('line-explain-loading').style.display = 'none';
                 document.getElementById('line-explain-text').textContent =
                     message.data.explanation;
+            } else if (message.type === 'currentMistakes') {
+                showCurrentMistakes(message.data);
             }
         });
 
@@ -1212,6 +1272,19 @@
         // FR19: Line explain
         function closeLineExplain() {
             document.getElementById('line-explain-card').style.display = 'none';
+        }
+
+        // Reset all stats — clear inflated data
+        async function resetStats() {
+            try {
+                const resp = await fetch('http://localhost:8000/reset-stats', { method: 'POST' });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    loadProgress();
+                }
+            } catch (e) {
+                console.error('Reset stats error:', e);
+            }
         }
     </script>
 
