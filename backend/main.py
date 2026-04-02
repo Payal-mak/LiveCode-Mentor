@@ -767,7 +767,7 @@ def get_profile():
         "learner": stats
     }
     
-    # FR14 + FR15: Generate LeetCode + article recommendations
+# FR14 + FR15: Generate LeetCode + article recommendations
 @app.post("/recommendations")
 async def get_recommendations(payload: CodePayload):
     concepts = detect_concepts(payload.code)
@@ -1313,6 +1313,7 @@ Keep explanation under 5 sentences."""
             "line_number": payload.line_number,
             "explanation": "Could not explain this line. Please try again."
         }
+  
         
 # ─────────────────────────────────────────────────────────────────────────────
 # GAMIFICATION ENDPOINTS
