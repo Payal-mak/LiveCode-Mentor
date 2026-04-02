@@ -1,4 +1,4 @@
-from database import init_db, save_concepts, save_mistake, get_stats, get_experience_level, log_session
+from database import init_db, save_concepts, save_mistake, get_stats, get_experience_level, log_session, MAJOR_DSA
 from tracer import trace_code
 
 # Initialize DB on startup
@@ -337,16 +337,17 @@ async def analyze(payload: CodePayload):
     concepts = detect_concepts(payload.code)
     print(f"[LiveCode Mentor] Concepts: {concepts}")
     
-    # FR12: Save concepts to database
-    save_concepts(concepts)
+    # FR12: Save concepts to database — ONLY on save trigger to prevent inflation
+    if payload.trigger == 'save':
+        save_concepts(concepts)
     log_session("analyze", f"trigger:{payload.trigger}")
 
     # FR9: Detect mistakes
     mistake_result = detect_mistakes(payload.code)
     print(f"[LiveCode Mentor] Mistakes: {mistake_result}")
     
-    # FR12: Save mistake to database
-    if mistake_result["has_mistake"] and mistake_result["mistake"]:
+    # FR12: Save mistake to database — ONLY on save trigger
+    if payload.trigger == 'save' and mistake_result["has_mistake"] and mistake_result["mistake"]:
         save_mistake(mistake_result["mistake"]["type"])
 
     # FR3: Get AI explanation
@@ -436,6 +437,33 @@ Code:
 @app.get("/stats")
 def get_progress():
     return get_stats()
+
+# Reset stats — clear inflated data from DB
+@app.post("/reset-stats")
+def reset_stats():
+    from database import get_conn
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM concept_history")
+        conn.execute("DELETE FROM mistake_history")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": "ok", "message": "Stats reset successfully"}
+
+# FR23: Current-code mistakes — tracks ONLY current code's issues (not lifetime)
+@app.post("/current-mistakes")
+async def current_mistakes(payload: CodePayload):
+    mistake_result = detect_mistakes(payload.code)
+    concepts = detect_concepts(payload.code)
+    major_lower = {m.lower() for m in MAJOR_DSA}
+    major = [c for c in concepts if c.lower() in major_lower]
+    return {
+        "has_mistake": mistake_result["has_mistake"],
+        "mistake": mistake_result.get("mistake"),
+        "major_concepts_count": len(major),
+        "major_concepts": major
+    }
 
 @app.get("/profile")
 def get_profile():
