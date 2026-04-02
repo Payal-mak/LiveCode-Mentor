@@ -773,111 +773,117 @@ def get_profile():
 # H8: Now uses classifier output (algorithms/paradigms) instead of manual AST re-analysis
 @app.post("/recommendations")
 async def get_recommendations(payload: CodePayload):
+    # Use classifier for ALL languages — it uses regex, works for C++ too
+    from classifier import detect_algorithm_type, detect_paradigm
 
-    # Use classifier — much more accurate than manual AST re-analysis
-    basic_concepts  = detect_concepts(payload.code)
-    classification  = get_all_concepts(payload.code, payload.language, basic_concepts)
-    algorithms      = classification["algorithms"]
-    data_structures = classification["data_structures"]
-    paradigms       = classification["paradigms"]
+    algorithms = detect_algorithm_type(payload.code)
+    paradigms  = detect_paradigm(payload.code, payload.language)
 
-    # Nothing detected — nothing to recommend
-    if not algorithms and not data_structures and not paradigms and not basic_concepts:
+    # For Python also get basic concepts
+    if payload.language == "python":
+        basic = detect_concepts(payload.code)
+    else:
+        basic = []
+
+    # Merge all detected concepts
+    all_detected = list(dict.fromkeys(algorithms + paradigms + basic))
+
+    if not all_detected:
         return {"leetcode": [], "article": None}
 
-    print(f"[LiveCode Mentor] Recommendations | algos={algorithms} | ds={data_structures} | paradigms={paradigms}")
+    print(f"[LiveCode Mentor] Generating recommendations for: {all_detected} ({payload.language})")
 
-    # ── Build a rich, specific context block ─────────────────────────────────
-    context_lines = []
+    # Build rich context using classifier's deep analysis
+    try:
+        if payload.language == "python":
+            tree = ast.parse(payload.code)
+        else:
+            tree = None
+    except:
+        tree = None
 
-    if algorithms:
-        context_lines.append(f"Primary algorithm(s): {', '.join(algorithms)}")
-    if data_structures:
-        context_lines.append(f"Data structure(s) used: {', '.join(data_structures)}")
-    if paradigms:
-        context_lines.append(f"Programming paradigm(s): {', '.join(paradigms)}")
+    has_recursion = False
+    has_nested_loops = False
+    has_class = False
+    algorithm_hints = algorithms.copy()
 
-    # Primary topic = first algorithm, or first DS, or first paradigm
-    primary = (algorithms or data_structures or paradigms or basic_concepts)[0]
-    context_lines.append(f"Primary topic for recommendations: {primary}")
+    if tree:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Call):
+                        if isinstance(child.func, ast.Name) and child.func.id == node.name:
+                            has_recursion = True
+            if isinstance(node, ast.ClassDef):
+                has_class = True
+            if isinstance(node, ast.For):
+                for child in ast.walk(node):
+                    if isinstance(child, ast.For) and child is not node:
+                        has_nested_loops = True
+
+    context_lines = [f"Language: {payload.language}"]
+    context_lines.append(f"Detected: {', '.join(all_detected)}")
+    if has_recursion:
+        context_lines.append("Uses recursion")
+    if has_nested_loops:
+        context_lines.append("Has nested loops — O(n²) pattern")
+    if has_class:
+        context_lines.append("Uses OOP / classes")
+
     context = "\n".join(context_lines)
 
-    prompt = f"""You are a coding mentor recommending practice problems and learning resources.
+    prompt = f"""You are a coding mentor recommending LeetCode problems and resources.
 
-The student's code uses:
-{context}
-
-Code:
+Code ({payload.language}):
 ```{payload.language}
-{payload.code[:600]}
+{payload.code}
 ```
 
-Based on EXACTLY the primary topic ({primary}), recommend:
-1. Two LeetCode problems that directly practice THIS specific algorithm or data structure
-2. One high-quality article to learn more about {primary}
+Code analysis:
+{context}
 
-STRICT RULES:
-- LeetCode problems must match the primary topic exactly — NOT generic "array" problems if the topic is "Binary Search"
-- Difficulty: Easy or Medium only
-- Use REAL LeetCode problem titles and actual slugs in the URL
-- Article: prefer realpython.com, docs.python.org, geeksforgeeks.org, or programiz.com
-- Article title must describe exactly what it teaches about {primary}
+Based on what this student is ACTUALLY practicing, recommend:
+1. Two LeetCode problems that directly practice the SAME concepts
+2. One high-quality article/documentation page
 
-Algorithm → recommended problems mapping (use these as guidance):
-- Binary Search → "Binary Search" (Easy), "Search in Rotated Sorted Array" (Medium)
-- Two Pointer → "Two Sum II" (Medium), "Valid Palindrome" (Easy)
-- Sliding Window → "Maximum Subarray" (Medium), "Longest Substring Without Repeating Characters" (Medium)
-- Dynamic Programming → "Climbing Stairs" (Easy), "Coin Change" (Medium)
-- Backtracking → "Subsets" (Medium), "Permutations" (Medium)
-- Graph BFS → "Number of Islands" (Medium), "Rotting Oranges" (Medium)
-- Graph DFS → "Clone Graph" (Medium), "Path Sum" (Easy)
-- Recursion → "Fibonacci Number" (Easy), "Power of Two" (Easy)
-- Sorting → "Sort Colors" (Medium), "Merge Intervals" (Medium)
-- Linked List → "Reverse Linked List" (Easy), "Merge Two Sorted Lists" (Easy)
-- Stack → "Valid Parentheses" (Easy), "Min Stack" (Medium)
-- Hash Map → "Two Sum" (Easy), "Group Anagrams" (Medium)
-- Tree → "Inorder Traversal" (Easy), "Maximum Depth of Binary Tree" (Easy)
-- Heap → "Kth Largest Element in an Array" (Medium), "Find Median from Data Stream" (Hard — skip, use Top K Frequent Elements instead)
-- Greedy → "Jump Game" (Medium), "Best Time to Buy and Sell Stock" (Easy)
-- Divide and Conquer → "Merge Sort Array" (Easy), "Search a 2D Matrix" (Medium)
-- Object-Oriented Programming → "Design Parking System" (Easy), "Design HashMap" (Medium)
+RULES:
+- Problems must match the ACTUAL algorithm/technique in this code
+- If it uses Hash Map + Two Sum pattern → recommend Two Sum and similar
+- If it uses Sorting → recommend sorting problems
+- If it uses Recursion → recommend recursive problems
+- If it's OOP → recommend OOP design problems
+- Difficulty: Easy or Medium ONLY
+- Use REAL LeetCode problem titles and actual URLs
 
 Return ONLY this JSON:
 {{
   "leetcode": [
-    {{"title": "exact problem title", "difficulty": "Easy", "url": "https://leetcode.com/problems/exact-slug/"}},
-    {{"title": "exact problem title", "difficulty": "Medium", "url": "https://leetcode.com/problems/exact-slug/"}}
+    {{"title": "problem title", "difficulty": "Easy", "url": "https://leetcode.com/problems/slug/"}},
+    {{"title": "problem title", "difficulty": "Medium", "url": "https://leetcode.com/problems/slug/"}}
   ],
   "article": {{
-    "title": "exact article title",
-    "url": "https://exact-url.com"
+    "title": "article title",
+    "url": "https://actual-url.com"
   }}
 }}
 
-Return ONLY valid JSON. No markdown. No explanation."""
+Return ONLY valid JSON. No markdown."""
 
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=350,
-            temperature=0.1   # very low — we want deterministic, accurate URLs
+            max_tokens=400,
+            temperature=0.2
         )
         raw = response.choices[0].message.content.strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
-
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            brace_start = raw.find('{')
-            brace_end   = raw.rfind('}')
-            if brace_start != -1 and brace_end != -1:
-                data = json.loads(raw[brace_start:brace_end + 1])
-            else:
-                raise
-
-        return data
-
+        result = json.loads(raw)
+        print(f"[LiveCode Mentor] Recommendations generated: {len(result.get('leetcode', []))} problems")
+        return result
+    except json.JSONDecodeError as e:
+        print(f"[LiveCode Mentor] Recommendations JSON error: {e}")
+        return {"leetcode": [], "article": None}
     except Exception as e:
         print(f"[LiveCode Mentor] Recommendations error: {e}")
         return {"leetcode": [], "article": None}
