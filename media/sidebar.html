@@ -565,6 +565,124 @@
             opacity: 0.35;
             filter: grayscale(1);
         }
+
+        /* Progress tab */
+        .badge-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .badge-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--vscode-panel-border);
+            background: var(--vscode-editor-background);
+            transition: opacity 0.2s;
+        }
+
+        .badge-card.earned {
+            background: rgba(255,217,61,0.08);
+            border-color: rgba(255,217,61,0.3);
+        }
+
+        .badge-card.locked {
+            opacity: 0.4;
+            filter: grayscale(0.8);
+        }
+
+        .badge-icon {
+            font-size: 20px;
+            min-width: 24px;
+            text-align: center;
+            line-height: 1;
+        }
+
+        .badge-info { flex: 1; min-width: 0; }
+
+        .badge-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--vscode-foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .badge-desc {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .badge-check {
+            font-size: 12px;
+            color: #ffd93d;
+            min-width: 14px;
+        }
+
+        /* Concept bar */
+        .concept-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .concept-bar-name {
+            font-size: 11px;
+            color: var(--vscode-foreground);
+            min-width: 130px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .concept-bar-track {
+            flex: 1;
+            height: 5px;
+            background: var(--vscode-panel-border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .concept-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #7c6ff7, #4ecdc4);
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+
+        .concept-bar-count {
+            font-size: 10px;
+            font-family: monospace;
+            color: var(--vscode-descriptionForeground);
+            min-width: 22px;
+            text-align: right;
+        }
+
+        /* Score history */
+        .history-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            font-size: 11px;
+        }
+
+        .history-row:last-child { border-bottom: none; }
+
+        .history-delta-pos { color: #6bcb77; font-weight: 600; font-family: monospace; }
+        .history-delta-neg { color: #ff6b6b; font-weight: 600; font-family: monospace; }
+        .history-reason    { color: var(--vscode-descriptionForeground); flex: 1; margin: 0 8px; }
+        .history-total     { color: var(--vscode-foreground); font-family: monospace; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -760,56 +878,74 @@
                 <div class="spinner"></div>
                 <div class="loading-text">Loading your progress...</div>
             </div>
-                <div id="progress-content" style="display:none;">
+            <div id="progress-content" style="display:none;">
 
-                <!-- Score card -->
-                <div class="card" style="text-align:center;margin-bottom:12px;">
-                    <div style="font-size:36px;font-weight:700;color:#ffd93d;line-height:1;" id="big-score">0</div>
-                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Total Points</div>
-                    <div id="last-action" style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:6px;min-height:14px;"></div>
-                </div>
-
-                <!-- Badges -->
-                <div class="card" style="margin-bottom:12px;">
-                    <div class="card-title" style="color:#ffd93d;">🏆 Badges</div>
-                    <div id="badges-container" style="margin-top:8px;">
-                        <div style="font-size:12px;color:var(--vscode-descriptionForeground);">Loading badges...</div>
+                <!-- Score + Streak row -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                    <div class="card" style="text-align:center;padding:16px 10px;">
+                        <div style="font-size:32px;font-weight:700;color:#ffd93d;line-height:1;" id="big-score">0</div>
+                        <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;">Total Points</div>
+                        <div id="score-level-label" style="font-size:10px;margin-top:6px;padding:2px 8px;border-radius:10px;display:inline-block;"></div>
+                    </div>
+                    <div class="card" style="text-align:center;padding:16px 10px;">
+                        <div style="font-size:32px;font-weight:700;color:#ff6b6b;line-height:1;" id="big-streak">0</div>
+                        <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;">Day Streak 🔥</div>
+                        <div id="streak-label" style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:6px;"></div>
                     </div>
                 </div>
 
-                <!-- Mistakes tracker -->
+                <!-- Last action -->
+                <div id="last-action-card" style="display:none;padding:8px 12px;background:rgba(107,203,119,0.1);border:1px solid rgba(107,203,119,0.25);border-radius:6px;font-size:12px;color:#6bcb77;margin-bottom:12px;" id="last-action"></div>
+
+                <!-- Badges -->
                 <div class="card" style="margin-bottom:12px;">
-                    <div class="card-title amber">⚠️ Mistakes Tracker</div>
-                    <div style="display:flex;gap:12px;margin-top:6px;">
-                        <div style="flex:1;text-align:center;padding:10px;background:rgba(255,107,107,0.1);border-radius:6px;border:1px solid rgba(255,107,107,0.2);">
-                            <div style="font-size:22px;font-weight:600;color:#ff6b6b;" id="total-mistakes">0</div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Detected</div>
+                    <div class="card-title" style="color:#ffd93d;margin-bottom:10px;">🏆 Badges</div>
+                    <div id="badges-grid"></div>
+                </div>
+
+                <!-- Stats row -->
+                <div class="card" style="margin-bottom:12px;">
+                    <div class="card-title amber" style="margin-bottom:10px;">📊 Session Stats</div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                        <div style="text-align:center;padding:8px;background:rgba(255,107,107,0.08);border-radius:6px;border:1px solid rgba(255,107,107,0.15);">
+                            <div style="font-size:20px;font-weight:600;color:#ff6b6b;" id="stat-detected">0</div>
+                            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em;">Detected</div>
                         </div>
-                        <div style="flex:1;text-align:center;padding:10px;background:rgba(107,203,119,0.1);border-radius:6px;border:1px solid rgba(107,203,119,0.2);">
-                            <div style="font-size:22px;font-weight:600;color:#6bcb77;" id="fixed-mistakes">0</div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">Fixed</div>
+                        <div style="text-align:center;padding:8px;background:rgba(107,203,119,0.08);border-radius:6px;border:1px solid rgba(107,203,119,0.15);">
+                            <div style="font-size:20px;font-weight:600;color:#6bcb77;" id="stat-fixed">0</div>
+                            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em;">Fixed</div>
                         </div>
-                        <div style="flex:1;text-align:center;padding:10px;background:rgba(78,205,196,0.1);border-radius:6px;border:1px solid rgba(78,205,196,0.2);">
-                            <div style="font-size:22px;font-weight:600;color:#4ecdc4;" id="total-concepts-seen">0</div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:2px;">DSA Concepts</div>
+                        <div style="text-align:center;padding:8px;background:rgba(78,205,196,0.08);border-radius:6px;border:1px solid rgba(78,205,196,0.15);">
+                            <div style="font-size:20px;font-weight:600;color:#4ecdc4;" id="stat-concepts">0</div>
+                            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em;">DSA Mastered</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- DSA Concepts -->
+                <div class="card" style="margin-bottom:12px;" id="dsa-card">
+                    <div class="card-title green" style="margin-bottom:10px;">🧠 DSA Concepts Practiced</div>
+                    <div id="progress-concepts"></div>
+                </div>
+
+                <!-- Recent score history -->
                 <div class="card" style="margin-bottom:12px;">
-                    <div class="card-title green">🧠 DSA Concepts Mastered</div>
-                    <div id="progress-concepts" style="margin-top:8px;"></div>
+                    <div class="card-title blue" style="margin-bottom:10px;">📈 Recent Activity</div>
+                    <div id="score-history"></div>
                 </div>
 
                 <!-- Session timer -->
                 <div class="card" style="margin-bottom:12px;">
-                    <div class="card-title blue">⏱️ Session</div>
-                    <div style="font-size:24px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
-                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:4px;">Time spent coding today</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <div>
+                            <div class="card-title blue">⏱️ Session Timer</div>
+                            <div style="font-size:22px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
+                        </div>
+                        <div style="font-size:24px;opacity:0.3;">⏱</div>
+                    </div>
                 </div>
 
-                <button class="btn btn-primary" onclick="loadProgress()">🔄 Refresh Stats</button>
+                <button class="btn btn-primary" onclick="loadProgress()" style="margin-top:4px;">🔄 Refresh Stats</button>
             </div>
         </div>
 
@@ -1025,60 +1161,195 @@
         }
 
         // ── Progress ──────────────────────────────────────────────────────────
+        // ── PROGRESS TAB ──────────────────────────────────────────────────────────────
+        //let sessionStart = Date.now();
+
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+            const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const secs = String(elapsed % 60).padStart(2, '0');
+            const el = document.getElementById('session-timer');
+            if (el) { el.textContent = mins + ':' + secs; }
+        }, 1000);
+
         async function loadProgress() {
+            // Reset session timer
             sessionStart = Date.now();
+
             document.getElementById('progress-loading').style.display = 'flex';
             document.getElementById('progress-content').style.display = 'none';
 
             try {
-                const [statsResp, scoreResp] = await Promise.all([
+                const [statsRes, scoreRes] = await Promise.all([
                     fetch('http://localhost:8000/stats'),
                     fetch('http://localhost:8000/score')
                 ]);
-                const stats = await statsResp.json();
-                const scoreData = await scoreResp.json();
 
-                renderProgress(stats);
-                updateScoreDisplay(scoreData.score);
-                renderBadges(scoreData.badges);
+                if (!statsRes.ok || !scoreRes.ok) { throw new Error('Server error'); }
 
-                const bigScore = document.getElementById('big-score');
-                if (bigScore) { bigScore.textContent = scoreData.score; }
+                const stats = await statsRes.json();
+                const scoreData = await scoreRes.json();
+
+                document.getElementById('progress-loading').style.display = 'none';
+                document.getElementById('progress-content').style.display = 'block';
+
+                renderScoreSection(scoreData);
+                renderBadgesGrid(scoreData.badges);
+                renderStatsRow(stats);
+                renderConceptBars(stats.top_concepts);
+                renderScoreHistory(scoreData.history);
 
             } catch (e) {
                 document.getElementById('progress-loading').style.display = 'none';
                 document.getElementById('progress-content').style.display = 'block';
+                document.getElementById('badges-grid').innerHTML =
+                    '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">Could not load stats. Is the backend running?</div>';
             }
         }
-        function renderProgress(data) {
-            document.getElementById('progress-loading').style.display = 'none';
-            document.getElementById('progress-content').style.display = 'block';
 
-            const uniqueBadge = document.getElementById('unique-major-badge');
-            if (uniqueBadge) {
-                uniqueBadge.textContent = (data.unique_major_concepts || 0) + ' unique';
-            }
+        function renderScoreSection(scoreData) {
+            const score  = scoreData.score  || 0;
+            const streak = scoreData.streak || 0;
 
-            const conceptsEl = document.getElementById('progress-concepts');
-            if (data.top_concepts && data.top_concepts.length > 0) {
-                const maxCount = data.top_concepts[0].count;
-                conceptsEl.innerHTML = data.top_concepts.map(c => `
-                    <div class="concept-bar">
-                        <div class="concept-bar-name">${c.name}</div>
-                        <div class="concept-bar-track">
-                            <div class="concept-bar-fill" style="width:${(c.count/maxCount)*100}%"></div>
-                        </div>
-                        <div class="concept-bar-count">×${c.count}</div>
-                    </div>
-                `).join('');
+            // Score display
+            document.getElementById('big-score').textContent  = score;
+            document.getElementById('big-streak').textContent = streak;
+            updateScoreDisplay(score);
+
+            // Score level label
+            const levelEl = document.getElementById('score-level-label');
+            if (score >= 100) {
+                levelEl.textContent = '🏆 Champion';
+                levelEl.style.background = 'rgba(255,217,61,0.2)';
+                levelEl.style.color = '#ffd93d';
+            } else if (score >= 50) {
+                levelEl.textContent = '⭐ Advanced';
+                levelEl.style.background = 'rgba(124,111,247,0.15)';
+                levelEl.style.color = '#7c6ff7';
+            } else if (score >= 20) {
+                levelEl.textContent = '🌱 Learning';
+                levelEl.style.background = 'rgba(107,203,119,0.15)';
+                levelEl.style.color = '#6bcb77';
             } else {
-                conceptsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:8px 0;">Write code using DSA concepts (recursion, sorting, etc.) to track your progress!</div>';
+                levelEl.textContent = '👶 Just Started';
+                levelEl.style.background = 'rgba(170,170,170,0.1)';
+                levelEl.style.color = 'var(--vscode-descriptionForeground)';
             }
 
-            document.getElementById('total-mistakes').textContent    = data.total_mistakes    || 0;
-            document.getElementById('fixed-mistakes').textContent    = data.fixed_mistakes    || 0;
-            document.getElementById('total-concepts-seen').textContent = data.total_concepts_seen || 0;
+            // Streak label
+            const streakEl = document.getElementById('streak-label');
+            if (streak === 0) {
+                streakEl.textContent = 'Start coding to build a streak!';
+            } else if (streak === 1) {
+                streakEl.textContent = 'Keep it up tomorrow!';
+            } else {
+                streakEl.textContent = streak + ' days in a row 💪';
+            }
         }
+
+        function renderBadgesGrid(badges) {
+            const grid = document.getElementById('badges-grid');
+            if (!badges || badges.length === 0) {
+                grid.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No badges defined yet.</div>';
+                return;
+            }
+
+            const earned = badges.filter(b => b.earned);
+            const locked = badges.filter(b => !b.earned);
+
+            let html = '<div class="badge-grid">';
+
+            // Earned first
+            earned.forEach(b => {
+                html += `
+                <div class="badge-card earned" title="${b.desc}">
+                    <div class="badge-icon">${b.icon}</div>
+                    <div class="badge-info">
+                        <div class="badge-name">${b.name}</div>
+                        <div class="badge-desc">${b.desc}</div>
+                    </div>
+                    <div class="badge-check">✓</div>
+                </div>`;
+            });
+
+            // Locked after
+            locked.forEach(b => {
+                html += `
+                <div class="badge-card locked" title="Locked: ${b.desc}">
+                    <div class="badge-icon">${b.icon}</div>
+                    <div class="badge-info">
+                        <div class="badge-name">${b.name}</div>
+                        <div class="badge-desc">${b.desc}</div>
+                    </div>
+                    <div class="badge-check" style="color:var(--vscode-descriptionForeground);">🔒</div>
+                </div>`;
+            });
+
+            html += '</div>';
+
+            // Summary line
+            html += `<div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:8px;text-align:center;">
+                ${earned.length} / ${badges.length} badges earned
+            </div>`;
+
+            grid.innerHTML = html;
+        }
+
+        function renderStatsRow(stats) {
+            document.getElementById('stat-detected').textContent = stats.total_mistakes || 0;
+            document.getElementById('stat-fixed').textContent    = stats.fixed_mistakes || 0;
+            document.getElementById('stat-concepts').textContent = stats.unique_major_concepts || 0;
+            document.getElementById('total-concepts-seen').textContent = stats.unique_major_concepts || 0;
+            document.getElementById('total-mistakes').textContent = stats.total_mistakes || 0;
+            document.getElementById('fixed-mistakes').textContent = stats.fixed_mistakes || 0;
+        }
+
+        function renderConceptBars(concepts) {
+            const el = document.getElementById('progress-concepts');
+            if (!concepts || concepts.length === 0) {
+                el.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No DSA concepts practiced yet. Write some code!</div>';
+                document.getElementById('dsa-card').style.display = 'block';
+                return;
+            }
+
+            const maxCount = concepts[0].count || 1;
+            el.innerHTML = concepts.map(c => `
+                <div class="concept-bar">
+                    <div class="concept-bar-name">${c.name}</div>
+                    <div class="concept-bar-track">
+                        <div class="concept-bar-fill" style="width:${Math.round((c.count / maxCount) * 100)}%"></div>
+                    </div>
+                    <div class="concept-bar-count">×${c.count}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderScoreHistory(history) {
+            const el = document.getElementById('score-history');
+            if (!history || history.length === 0) {
+                el.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No activity yet. Start coding!</div>';
+                return;
+            }
+
+            el.innerHTML = history.map(h => {
+                const isPos = h.delta >= 0;
+                const deltaStr = (isPos ? '+' : '') + h.delta;
+                const deltaClass = isPos ? 'history-delta-pos' : 'history-delta-neg';
+                return `
+                <div class="history-row">
+                    <span class="${deltaClass}">${deltaStr}</span>
+                    <span class="history-reason">${h.reason}</span>
+                    <span class="history-total">${h.total} pts</span>
+                </div>`;
+            }).join('');
+        }
+
+        // Auto-load progress when tab is clicked
+        const _originalSwitchTab = window.switchTab || switchTab;
+        window.switchTab = function(tabName) {
+            switchTab(tabName);
+            if (tabName === 'progress') { loadProgress(); }
+        };
 
         function showCurrentMistakes(data) {
             const issuesCard    = document.getElementById('current-issues-card');

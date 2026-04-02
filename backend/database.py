@@ -383,6 +383,34 @@ def get_fix_count() -> int:
     finally:
         conn.close()
         
+def get_streak() -> int:
+    """Count how many consecutive days the user has coded."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            """
+            SELECT DATE(logged_at) as day
+            FROM session_logs
+            GROUP BY DATE(logged_at)
+            ORDER BY day DESC
+            """
+        ).fetchall()
+        if not rows:
+            return 0
+        from datetime import date, timedelta
+        streak = 0
+        today = date.today()
+        for i, (day_str,) in enumerate(rows):
+            day = date.fromisoformat(day_str)
+            expected = today - timedelta(days=i)
+            if day == expected:
+                streak += 1
+            else:
+                break
+        return streak
+    finally:
+        conn.close()
+        
 # ─────────────────────────────────────────────────────────────────────────────
 # SESSION LOGGING
 # ─────────────────────────────────────────────────────────────────────────────
@@ -396,3 +424,4 @@ def log_session(event: str, detail: str = ""):
         conn.commit()
     finally:
         conn.close()
+        

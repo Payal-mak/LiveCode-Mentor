@@ -12,7 +12,7 @@ from database import (
     init_db, save_concepts, save_mistake, get_stats,
     get_experience_level, log_session, MAJOR_DSA,
     update_score, get_score, get_score_history,
-    award_badge, get_badges, get_fix_count
+    award_badge, get_badges, get_fix_count, get_streak
 )
 from tracer import trace_code
 from classifier import get_all_concepts
@@ -1373,6 +1373,12 @@ BADGE_DEFS = [
         "icon": "🚀",
         "desc": "Used 5 different DSA algorithms"
     },
+    {
+        "id": "streak_3",    
+        "name": "On a Roll",       
+        "icon": "🔥", 
+        "desc": "Coded 3 days in a row"
+    }
 ]
 
 def check_and_award_badges(current_score: int) -> list:
@@ -1411,22 +1417,37 @@ def check_and_award_badges(current_score: int) -> list:
 
     return newly_earned
 
-@app.post("/score")
-async def add_score(payload: ScorePayload):
-    new_total = update_score(payload.delta, payload.reason)
-    newly_earned = check_and_award_badges(new_total)
+@app.get("/score")
+async def get_current_score():
+    score = get_score()
+    check_and_award_badges(score)
+    earned = get_badges()
+    earned_ids = {b["badge_id"] for b in earned}
+    streak = get_streak()
 
-    # Find badge details for newly earned
-    new_badge_details = [
-        b for b in BADGE_DEFS if b["id"] in newly_earned
-    ]
+    # Award streak badge
+    if streak >= 3:
+        if award_badge("streak_3"):
+            pass  # will show on next fetch
 
-    print(f"[LiveCode Mentor] Score update: {payload.delta:+d} ({payload.reason}) → total={new_total}")
+    badge_details = []
+    for b in BADGE_DEFS:
+        badge_details.append({
+            **b,
+            "earned": b["id"] in earned_ids,
+            "earned_at": next(
+                (e["earned_at"] for e in earned if e["badge_id"] == b["id"]),
+                None
+            )
+        })
+
+    stats = get_stats()
     return {
-        "score": new_total,
-        "delta": payload.delta,
-        "reason": payload.reason,
-        "new_badges": new_badge_details
+        "score":   score,
+        "streak":  streak,
+        "badges":  badge_details,
+        "history": get_score_history(5),
+        "stats":   stats
     }
 
 @app.get("/score")
