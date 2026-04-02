@@ -895,7 +895,7 @@
                 </div>
 
                 <!-- Last action -->
-                <div id="last-action-card" style="display:none;padding:8px 12px;background:rgba(107,203,119,0.1);border:1px solid rgba(107,203,119,0.25);border-radius:6px;font-size:12px;color:#6bcb77;margin-bottom:12px;" id="last-action"></div>
+                <div id="last-action-card" style="display:none;padding:8px 12px;background:rgba(107,203,119,0.1);border:1px solid rgba(107,203,119,0.25);border-radius:6px;font-size:12px;color:#6bcb77;margin-bottom:12px;"></div>
 
                 <!-- Badges -->
                 <div class="card" style="margin-bottom:12px;">
@@ -1296,12 +1296,14 @@
         }
 
         function renderStatsRow(stats) {
-            document.getElementById('stat-detected').textContent = stats.total_mistakes || 0;
-            document.getElementById('stat-fixed').textContent    = stats.fixed_mistakes || 0;
-            document.getElementById('stat-concepts').textContent = stats.unique_major_concepts || 0;
-            document.getElementById('total-concepts-seen').textContent = stats.unique_major_concepts || 0;
-            document.getElementById('total-mistakes').textContent = stats.total_mistakes || 0;
-            document.getElementById('fixed-mistakes').textContent = stats.fixed_mistakes || 0;
+            // IDs that exist in the current progress tab HTML
+            const safeSet = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) { el.textContent = val; }
+            };
+            safeSet('stat-detected', stats.total_mistakes || 0);
+            safeSet('stat-fixed',    stats.fixed_mistakes || 0);
+            safeSet('stat-concepts', stats.unique_major_concepts || 0);
         }
 
         function renderConceptBars(concepts) {
@@ -1344,12 +1346,7 @@
             }).join('');
         }
 
-        // Auto-load progress when tab is clicked
-        const _originalSwitchTab = window.switchTab || switchTab;
-        window.switchTab = function(tabName) {
-            switchTab(tabName);
-            if (tabName === 'progress') { loadProgress(); }
-        };
+        // NOTE: window.switchTab is already overridden above — do NOT add another override here.
 
         function showCurrentMistakes(data) {
             const issuesCard    = document.getElementById('current-issues-card');
@@ -1428,8 +1425,8 @@
                         showToast('🏆 New badge: ' + message.data.new_badges[0].name + ' ' + message.data.new_badges[0].icon, 'badge');
                     }, 1000);
                 }
-                const lastAction = document.getElementById('last-action');
-                if (lastAction) { lastAction.textContent = message.data.message; }
+                const lastAction = document.getElementById('last-action-card');
+                if (lastAction) { lastAction.style.display = 'block'; lastAction.textContent = message.data.message; }
             } else if (message.type === 'scorePenalty') {
                 updateScoreDisplay(message.data.score);
                 showToast(message.data.message, 'penalty');
