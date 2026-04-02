@@ -39,6 +39,17 @@ def detect_paradigm(code: str, language: str) -> list[str]:
             has_async      = any(isinstance(n, (ast.AsyncFunctionDef, ast.Await))
                                  for n in ast.walk(tree))
             has_func       = any(isinstance(n, ast.FunctionDef) for n in ast.walk(tree))
+            # Check for encapsulation (double underscore private attributes)
+            has_encapsulation = bool(re.search(r'\bself\.__\w+', code))
+            if has_encapsulation:
+                paradigms.append("Encapsulation")
+                
+            has_encapsulation = any(
+                isinstance(n, ast.Attribute) and n.attr.startswith('__')
+                for n in ast.walk(tree)
+            )
+            if has_encapsulation:
+                paradigms.append("Encapsulation")
 
             if has_class:
                 paradigms.append("Object-Oriented Programming")
