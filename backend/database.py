@@ -1,6 +1,25 @@
 import sqlite3
 import os
 
+# Only track major DSA/CS concepts in progress — filter out trivial ones like 'print function'
+MAJOR_DSA = {
+    # Data Structures
+    "list / array", "linked list", "stack", "queue",
+    "hash map / dictionary", "dictionary", "tree", "graph", "heap", "set",
+    # Algorithms
+    "recursion", "dynamic programming", "binary search",
+    "sorting algorithm", "sorting", "graph traversal (BFS/DFS)",
+    "two pointer", "sliding window", "backtracking",
+    "divide and conquer", "greedy algorithm",
+    # Paradigms
+    "class / OOP", "inheritance", "polymorphism",
+    "functional programming", "lambda function",
+    # Core Constructs (only complex ones)
+    "try/except (error handling)", "async function",
+    "list comprehension", "decorator", "generator",
+    "higher-order functions"
+}
+
 DB_PATH = os.path.join(os.path.dirname(__file__), "learner.db")
 
 def get_conn():
@@ -38,13 +57,24 @@ def init_db():
 def save_concepts(concepts: list):
     if not concepts:
         return
+    # Only save major DSA concepts — skip trivial ones like 'print function'
+    major_lower = {m.lower() for m in MAJOR_DSA}
+    major_only = [c for c in concepts if c.lower() in major_lower]
+    if not major_only:
+        return
     conn = get_conn()
     try:
-        for concept in concepts:
-            conn.execute(
-                "INSERT INTO concept_history (concept) VALUES (?)",
+        for concept in major_only:
+            # Dedup: skip if the same concept was saved within last 5 minutes
+            recent = conn.execute(
+                "SELECT COUNT(*) FROM concept_history WHERE concept = ? AND seen_at > datetime('now', '-5 minutes')",
                 (concept,)
-            )
+            ).fetchone()[0]
+            if recent == 0:
+                conn.execute(
+                    "INSERT INTO concept_history (concept) VALUES (?)",
+                    (concept,)
+                )
         conn.commit()
     finally:
         conn.close()
@@ -96,25 +126,37 @@ def get_experience_level(concepts: list) -> str:
 def get_stats() -> dict:
     conn = get_conn()
     try:
-        top_concepts = conn.execute(
-            "SELECT concept, COUNT(*) as cnt FROM concept_history GROUP BY concept ORDER BY cnt DESC LIMIT 5"
+        # Only show major DSA concepts in progress — build filter
+        major_lower = {m.lower() for m in MAJOR_DSA}
+        
+        # Get ALL concepts from DB, filter to major only
+        all_concepts = conn.execute(
+            "SELECT concept, COUNT(*) as cnt FROM concept_history GROUP BY concept ORDER BY cnt DESC"
         ).fetchall()
+        top_concepts = [
+            {"name": c[0], "count": c[1]}
+            for c in all_concepts
+            if c[0].lower() in major_lower
+        ][:8]  # Show top 8 major concepts
+        
         total_mistakes = conn.execute(
             "SELECT COUNT(*) FROM mistake_history"
         ).fetchone()[0]
         fixed_mistakes = conn.execute(
             "SELECT COUNT(*) FROM mistake_history WHERE fixed = 1"
         ).fetchone()[0]
-        total_concepts_seen = conn.execute(
-            "SELECT COUNT(*) FROM concept_history"
-        ).fetchone()[0]
+        
+        # Count only major concepts seen
+        total_concepts_seen = sum(c["count"] for c in top_concepts)
+        unique_major = len(top_concepts)
     finally:
         conn.close()
     return {
-        "top_concepts": [{"name": c[0], "count": c[1]} for c in top_concepts],
+        "top_concepts": top_concepts,
         "total_mistakes": total_mistakes,
         "fixed_mistakes": fixed_mistakes,
-        "total_concepts_seen": total_concepts_seen
+        "total_concepts_seen": total_concepts_seen,
+        "unique_major_concepts": unique_major
     }
 
 def log_session(event: str, detail: str = ""):
