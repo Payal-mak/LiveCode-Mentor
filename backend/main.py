@@ -1,6 +1,7 @@
 from database import init_db, save_concepts, save_mistake, get_stats, get_experience_level, log_session, MAJOR_DSA
 from tracer import trace_code
 from classifier import get_all_concepts
+import re   # add alongside existing imports if missing
 
 # Initialize DB on startup
 init_db()
@@ -923,36 +924,143 @@ Return ONLY the JSON array, nothing else."""
     return result
 
 # FR8: Auto test input generation + execution
+# ─────────────────────────────────────────────────────────────────────────────
+# H5: INPUT STYLE DETECTOR
+# Returns whether code uses hardcoded literals, dynamic input(), or neither.
+# Drives how many tests to show and what kind of prompt to send Groq.
+# ─────────────────────────────────────────────────────────────────────────────
+def detect_input_style(code: str, language: str) -> dict:
+    """
+    Returns:
+      input_style : "hardcoded" | "dynamic" | "none"
+      hardcoded_vars : list of variable names assigned with literals (Python only)
+      has_input_call : bool — True if input() / cin detected
+    """
+    if language == "cpp":
+        # Regex-based detection — AST not available for C++
+        cpp_hardcoded = [
+            r'vector\s*<\w+>\s*\w+\s*=\s*\{',   # vector<int> arr = {2, 7, 11}
+            r'int\s+\w+\s*=\s*-?\d+',            # int target = 9
+            r'string\s+\w+\s*=\s*"',             # string s = "hello"
+            r'array\s*<\w+',                      # array<int, n> arr
+            r'int\s+\w+\[\s*\d*\s*\]\s*=\s*\{',  # int arr[] = {1, 2, 3}
+            r'char\s+\w+\[\s*\d*\s*\]\s*=\s*"',  # char s[] = "hello"
+        ]
+        has_hardcoded = any(re.search(p, code) for p in cpp_hardcoded)
+        has_cin       = bool(re.search(r'\bcin\s*>>', code))
+
+        if has_cin:
+            return {"input_style": "dynamic", "hardcoded_vars": [], "has_input_call": True}
+        if has_hardcoded:
+            return {"input_style": "hardcoded", "hardcoded_vars": [], "has_input_call": False}
+        return {"input_style": "none", "hardcoded_vars": [], "has_input_call": False}
+
+    # ── Python — use AST ──────────────────────────────────────────────────────
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return {"input_style": "none", "hardcoded_vars": [], "has_input_call": False}
+
+    # Dynamic check — any input() call anywhere in the code
+    has_input_call = any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "input"
+        for node in ast.walk(tree)
+    )
+    if has_input_call:
+        return {"input_style": "dynamic", "hardcoded_vars": [], "has_input_call": True}
+
+    # Hardcoded check — top-level variable assignments with literal values
+    # (lists, dicts, sets, tuples, numbers, strings — but NOT input() or function calls)
+    _LITERAL_TYPES = (
+        ast.List, ast.Dict, ast.Set, ast.Tuple,
+        ast.Constant,              # Python 3.8+ (covers str, int, float, bool)
+        ast.Num, ast.Str, ast.Bytes  # older AST nodes — kept for 3.7 compat
+    )
+    hardcoded_vars = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and isinstance(node.value, _LITERAL_TYPES):
+                    hardcoded_vars.append(target.id)
+
+    if hardcoded_vars:
+        return {"input_style": "hardcoded", "hardcoded_vars": hardcoded_vars, "has_input_call": False}
+
+    return {"input_style": "none", "hardcoded_vars": [], "has_input_call": False}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# H5: UPDATED /auto-test ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
 @app.post("/auto-test")
 async def auto_test(payload: CodePayload):
-    if payload.language != "python":
-        return {"tests": [], "error": "Only Python supported"}
+    language = payload.language or "python"
 
-    print(f"[LiveCode Mentor] Generating auto tests...")
+    print(f"[LiveCode Mentor] Auto-test | lang={language} | {len(payload.code)} chars")
 
-    # Use AST to understand what's in the code
+    # ── H5: Detect input style first — drives everything below ────────────────
+    style_info  = detect_input_style(payload.code, language)
+    input_style = style_info["input_style"]      # "hardcoded" | "dynamic" | "none"
+    hard_vars   = style_info["hardcoded_vars"]   # e.g. ["arr", "target"]
+    print(f"[LiveCode Mentor] Input style: {input_style} | hardcoded vars: {hard_vars}")
+
+    # ── C++: can't execute — return informational result only ─────────────────
+    if language == "cpp":
+        if input_style == "hardcoded":
+            # Extract the hardcoded variable lines to show as context
+            var_lines = []
+            for line in payload.code.splitlines():
+                stripped = line.strip()
+                # Show lines that look like variable declarations with values
+                if re.search(
+                    r'(vector|int|string|array|char|float|double)\s+\w+.*=',
+                    stripped
+                ):
+                    var_lines.append(stripped)
+
+            vars_display = "\n".join(var_lines[:5]) if var_lines else "Hardcoded values found"
+            return {
+                "tests": [{
+                    "description":  "C++ code with hardcoded input values",
+                    "input_code":   vars_display,
+                    "output":       "▶ Compile and run locally to see output",
+                    "success":      True,
+                    "error":        None,
+                    "note":         "hardcoded"
+                }],
+                "input_style": "hardcoded"
+            }
+        else:
+            # Dynamic cin or no input — just tell user to run locally
+            return {
+                "tests": [],
+                "error": "C++ execution requires local compilation. Use g++ to run.",
+                "input_style": input_style
+            }
+
+    # ── Python only below this point ──────────────────────────────────────────
     try:
         tree = ast.parse(payload.code)
     except SyntaxError as e:
         return {"tests": [], "error": f"Syntax error: {e.msg}"}
 
-    # Extract functions, classes, and top-level variables
-    functions = []
-    variables = []
-    classes = []
-
+    # Extract code structure for prompt context
+    functions, variables, classes = [], [], []
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
-            args = [a.arg for a in node.args.args]
-            functions.append({"name": node.name, "args": args})
+            functions.append({
+                "name": node.name,
+                "args": [a.arg for a in node.args.args]
+            })
         elif isinstance(node, ast.ClassDef):
             classes.append(node.name)
         elif isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    variables.append(target.id)
+            for t in node.targets:
+                if isinstance(t, ast.Name):
+                    variables.append(t.id)
 
-    # Build context string for Groq
     context_parts = []
     if functions:
         for f in functions:
@@ -961,37 +1069,67 @@ async def auto_test(payload: CodePayload):
         context_parts.append(f"Classes: {', '.join(classes)}")
     if variables:
         context_parts.append(f"Variables defined: {', '.join(set(variables))}")
+    context = "\n".join(context_parts) if context_parts else "No functions — just statements"
 
-    context = "\n".join(context_parts) if context_parts else "No functions or classes — just statements"
-
-    prompt = f"""You are a Python testing assistant.
+    # ── H5: Build prompt based on input style ─────────────────────────────────
+    if input_style == "hardcoded":
+        # 1 test only — use the existing hardcoded variables, don't redeclare
+        hard_vars_str = ", ".join(hard_vars) if hard_vars else "the variables already defined"
+        prompt = f"""You are a Python testing assistant.
 
 Here is the code to test:
 ```python
 {payload.code}
 ```
 
-Code structure detected:
+Code structure:
 {context}
 
-Your job: Generate exactly 3 test lines that will be APPENDED to the end of this code.
+IMPORTANT: This code already has hardcoded input values ({hard_vars_str}).
+Generate EXACTLY 1 test line that:
+1. Is a single print() statement
+2. Uses ONLY names already defined in the code — do NOT redeclare any variable
+3. Calls the main function (if one exists) with the already-defined variables as arguments
+4. If no function exists, just prints the result variable
 
-STRICT RULES — read carefully:
+Example — if code defines arr = [2,7,11] and function twoSum(nums, target):
+Good: print(twoSum(arr, target))
+Bad:  print(twoSum([2,7,11], 9))  ← don't hardcode values again
+
+Return ONLY this JSON:
+{{
+  "tests": [
+    {{"input_code": "print(functionName(var1, var2))", "description": "Run with hardcoded values"}}
+  ]
+}}
+
+Return ONLY valid JSON. No markdown. No explanation."""
+
+        num_tests_expected = 1
+
+    elif input_style == "dynamic":
+        # 3 tests — generate diverse realistic inputs for input() calls
+        prompt = f"""You are a Python testing assistant.
+
+Here is the code to test:
+```python
+{payload.code}
+```
+
+Code structure:
+{context}
+
+This code uses input() for dynamic values.
+Generate EXACTLY 3 test lines. Each test is ONE print() statement appended after the code.
+
+STRICT RULES:
 1. Each test line is ONE single Python print() statement
-2. It will run AFTER the code above, so all variables/functions are already defined
-3. Use ONLY names that actually exist in the code above
+2. It runs AFTER the code above — all functions/classes are already defined
+3. Use ONLY names that exist in the code
 4. Do NOT redeclare variables, do NOT rewrite the code
-5. Do NOT use semicolons
-6. Do NOT write multi-line code in a single test
+5. No semicolons, no multi-line code
 
-Examples of GOOD tests depending on code type:
-- If code defines function add(a,b): print(add(2, 3))
-- If code defines variable total: print(total)
-- If code defines list arr: print(len(arr))
-- If code defines class Dog: print(Dog())
-- If code just runs loops: print("Done")
-
-Return ONLY this JSON format:
+Return ONLY this JSON:
 {{
   "tests": [
     {{"input_code": "print(something)", "description": "short description"}},
@@ -1002,47 +1140,92 @@ Return ONLY this JSON format:
 
 Return ONLY valid JSON. No markdown. No explanation."""
 
+        num_tests_expected = 3
+
+    else:
+        # "none" — no input, no hardcoded vars (e.g. pure logic, loops, classes)
+        # Treat same as dynamic — 3 tests probing what exists
+        prompt = f"""You are a Python testing assistant.
+
+Here is the code to test:
+```python
+{payload.code}
+```
+
+Code structure:
+{context}
+
+Generate EXACTLY 3 test lines that probe the code's output or behavior.
+Each test is ONE print() statement appended after the code.
+
+STRICT RULES:
+1. Each line is ONE single print() statement
+2. It runs AFTER the code above — all names already exist
+3. Use ONLY names that appear in the code above
+4. No semicolons, no multi-line code
+
+Return ONLY this JSON:
+{{
+  "tests": [
+    {{"input_code": "print(something)", "description": "short description"}},
+    {{"input_code": "print(something_else)", "description": "short description"}},
+    {{"input_code": "print(another_thing)", "description": "short description"}}
+  ]
+}}
+
+Return ONLY valid JSON. No markdown. No explanation."""
+
+        num_tests_expected = 3
+
+    # ── Call Groq ─────────────────────────────────────────────────────────────
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=400,
+            max_tokens=150 if num_tests_expected == 1 else 400,
             temperature=0.1
         )
         raw = response.choices[0].message.content.strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
-        test_data = json.loads(raw)
 
-        # Run each test safely
+        # Same 2-attempt parse as _parse_or_fallback
+        try:
+            test_data = json.loads(raw)
+        except json.JSONDecodeError:
+            brace_start = raw.find('{')
+            brace_end   = raw.rfind('}')
+            if brace_start != -1 and brace_end != -1:
+                test_data = json.loads(raw[brace_start:brace_end + 1])
+            else:
+                raise
+
+        # ── Run each test via trace_code ──────────────────────────────────────
+        # For hardcoded style: Groq returns 1 test, cap at 1
+        # For dynamic/none:    Groq returns 3, cap at 3
+        tests_to_run = test_data.get("tests", [])[:num_tests_expected]
+
         results = []
-        for test in test_data.get("tests", []):
-            # Append test line to original code
-            full_code = payload.code.rstrip() + "\n" + test["input_code"]
+        for test in tests_to_run:
+            full_code   = payload.code.rstrip() + "\n" + test["input_code"]
             trace_result = trace_code(full_code, max_steps=100)
             results.append({
-                "description": test["description"],
-                "input_code": test["input_code"],
-                "output": trace_result.get("output", "").strip(),
-                "success": trace_result["success"],
-                "error": trace_result.get("error", None)
+                "description": test.get("description", ""),
+                "input_code":  test["input_code"],
+                "output":      trace_result.get("output", "").strip(),
+                "success":     trace_result["success"],
+                "error":       trace_result.get("error") or None,
+                "note":        input_style   # H5: "hardcoded" | "dynamic" | "none"
             })
 
-        print(f"[LiveCode Mentor] Auto tests done: {len(results)} ran")
-        return {"tests": results}
+        print(f"[LiveCode Mentor] Auto tests done: {len(results)} ran (style={input_style})")
+        return {"tests": results, "input_style": input_style}
 
     except json.JSONDecodeError as e:
         print(f"[LiveCode Mentor] JSON parse error: {e}")
-        return {"tests": [], "error": "Could not parse test cases"}
+        return {"tests": [], "error": "Could not parse test cases", "input_style": input_style}
     except Exception as e:
         print(f"[LiveCode Mentor] Auto test error: {e}")
-        return {"tests": [], "error": str(e)}
-    
-class LinePayload(BaseModel):
-    code: str
-    line: str
-    line_number: int
-    language: str = "python"
-    context: str = ""
+        return {"tests": [], "error": str(e), "input_style": input_style}
 
 @app.post("/explain-line")
 async def explain_line(payload: LinePayload):

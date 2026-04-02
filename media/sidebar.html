@@ -1113,11 +1113,16 @@
             }
 
             card.style.display = 'block';
+            // In showAutoTests() — replace the content.innerHTML = data.tests.map(...) block
             content.innerHTML = data.tests.map(test => `
                 <div class="test-row">
                     <div class="test-status">${test.success ? '✅' : '❌'}</div>
                     <div class="test-content">
-                        <div class="test-desc">${test.description}</div>
+                        <div class="test-desc">${test.description}${
+                            test.note === 'hardcoded'
+                                ? ' <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(78,205,196,0.12);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);margin-left:4px;">hardcoded input</span>'
+                                : ''
+                        }</div>
                         <div class="test-input">▶ ${test.input_code}</div>
                         ${test.output
                             ? `<div class="test-output">→ ${test.output}</div>`
