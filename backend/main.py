@@ -204,6 +204,41 @@ def detect_mistakes(code: str) -> dict:
     except:
         return {"has_mistake": False, "mistake": None}
 
+def has_hardcoded_inputs(code: str, language: str) -> bool:
+    """Detect code that already contains fixed input values instead of reading input dynamically."""
+    if language == "python":
+        try:
+            tree = ast.parse(code)
+
+            has_input_call = any(
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "input"
+                for node in ast.walk(tree)
+            )
+
+            has_hardcoded_data = any(
+                isinstance(node, ast.Assign)
+                and isinstance(node.value, (ast.List, ast.Dict, ast.Set, ast.Tuple))
+                and (
+                    len(node.value.elts) > 0
+                    if hasattr(node.value, "elts")
+                    else len(node.value.keys) > 0
+                )
+                for node in ast.walk(tree)
+            )
+
+            return has_hardcoded_data and not has_input_call
+        except:
+            return False
+
+    code_lower = code.lower()
+    hardcoded_patterns = [
+        "= {", "= [", "int arr[] =", "vector<int> arr =",
+        "int[] arr =", "list<Integer> arr =", "unordered_map<", "map<"
+    ]
+    return any(pattern in code_lower for pattern in hardcoded_patterns)
+
 def check_syntax(code: str, language: str):
     if language != "python":
         return None
@@ -894,7 +929,26 @@ async def get_trace(payload: CodePayload):
     print(f"[LiveCode Mentor] Running execution trace...")
 
     if payload.language != "python":
-        return {"success": False, "error": "Tracing only supported for Python", "steps": []}
+    # For C++/Java — detect hardcoded inputs and show what we know
+        is_hard = has_hardcoded_inputs(payload.code, payload.language)
+        if is_hard:
+            return {
+                "tests": [{
+                    "description": "Hardcoded input values detected",
+                    "input_code": "Run locally to see output",
+                    "output": "C++ code must be compiled and run locally",
+                    "success": True,
+                    "error": None,
+                    "note": "hardcoded"
+                }],
+                "input_style": "hardcoded",
+                "message": "C++ code detected — compile and run locally to see output"
+            }
+        return {
+            "tests": [],
+            "input_style": "none",
+            "message": "Auto-testing only supports Python currently"
+        }
 
     # Detect if code uses input() and generate smart mock values
     mock_inputs = ["5", "1 2 3 4 5", "3", "1 2 3", "10", "hello", "0"]
