@@ -962,7 +962,7 @@
             originalSwitchTab(tabName);
             if (tabName === 'progress') { loadProgress(); }
         };
-        // FR14 + FR15: Show recommendations
+        // Unified message listener — handles all message types
         window.addEventListener('message', event => {
             const message = event.data;
             if (message.type === 'explanation') {
@@ -975,10 +975,28 @@
                 showLoading();
             } else if (message.type === 'recommendations') {
                 showRecommendations(message.data);
-            }else if (message.type === 'trace') {
+            } else if (message.type === 'trace') {
                 showTrace(message.data);
             } else if (message.type === 'autotest') {
                 showAutoTests(message.data);
+            } else if (message.type === 'switchTab') {
+                switchTab(message.data);
+            } else if (message.type === 'lineExplainLoading') {
+                // Show loading for line explain
+                const card = document.getElementById('line-explain-card');
+                card.style.display = 'block';
+                document.getElementById('line-explain-code').textContent =
+                    'Line ' + message.data.lineNumber + ': ' + message.data.line;
+                document.getElementById('line-explain-loading').style.display = 'flex';
+                document.getElementById('line-explain-text').textContent = '';
+                // Switch to explain tab
+                switchTab('explanation');
+                // Scroll to top
+                document.querySelector('.content').scrollTop = 0;
+            } else if (message.type === 'lineExplain') {
+                document.getElementById('line-explain-loading').style.display = 'none';
+                document.getElementById('line-explain-text').textContent =
+                    message.data.explanation;
             }
         });
 
@@ -1195,42 +1213,6 @@
         function closeLineExplain() {
             document.getElementById('line-explain-card').style.display = 'none';
         }
-
-        // Handle line explain messages
-        window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.type === 'explanation') {
-                showExplanation(message.data);
-            } else if (message.type === 'hint') {
-                showHint(message.data);
-            } else if (message.type === 'flow') {
-                showFlow(message.data);
-            } else if (message.type === 'loading') {
-                showLoading();
-            } else if (message.type === 'recommendations') {
-                showRecommendations(message.data);
-            } else if (message.type === 'autotest') {
-                showAutoTests(message.data);
-            } else if (message.type === 'trace') {
-                showTrace(message.data);
-            } else if (message.type === 'lineExplainLoading') {
-                // Show loading for line explain
-                const card = document.getElementById('line-explain-card');
-                card.style.display = 'block';
-                document.getElementById('line-explain-code').textContent =
-                    `Line ${message.data.lineNumber}: ${message.data.line}`;
-                document.getElementById('line-explain-loading').style.display = 'flex';
-                document.getElementById('line-explain-text').textContent = '';
-                // Switch to explain tab
-                switchTab('explanation');
-                // Scroll to top
-                document.querySelector('.content').scrollTop = 0;
-            } else if (message.type === 'lineExplain') {
-                document.getElementById('line-explain-loading').style.display = 'none';
-                document.getElementById('line-explain-text').textContent =
-                    message.data.explanation;
-            }
-        });
     </script>
 
 </body>
