@@ -624,9 +624,10 @@ async def analyze(payload: CodePayload):
             algorithms=algorithms,
             paradigms=paradigms
         )
-        result["mistake"]    = mistake_result
-        result["algorithms"] = algorithms
-        result["paradigms"]  = paradigms
+        result["mistake"]         = mistake_result
+        result["algorithms"]      = algorithms
+        result["paradigms"]       = paradigms
+        result["data_structures"] = classification.get("data_structures", [])  # H8
         return result
     except Exception as e:
         print(f"[LiveCode Mentor] Error: {e}")
@@ -768,127 +769,88 @@ def get_profile():
     }
     
 # FR14 + FR15: Generate LeetCode + article recommendations
+# FR14 + FR15: Generate LeetCode + article recommendations
+# H8: Now uses classifier output (algorithms/paradigms) instead of manual AST re-analysis
 @app.post("/recommendations")
 async def get_recommendations(payload: CodePayload):
-    concepts = detect_concepts(payload.code)
-    if not concepts:
+
+    # Use classifier — much more accurate than manual AST re-analysis
+    basic_concepts  = detect_concepts(payload.code)
+    classification  = get_all_concepts(payload.code, payload.language, basic_concepts)
+    algorithms      = classification["algorithms"]
+    data_structures = classification["data_structures"]
+    paradigms       = classification["paradigms"]
+
+    # Nothing detected — nothing to recommend
+    if not algorithms and not data_structures and not paradigms and not basic_concepts:
         return {"leetcode": [], "article": None}
 
-    print(f"[LiveCode Mentor] Generating recommendations for: {concepts}")
+    print(f"[LiveCode Mentor] Recommendations | algos={algorithms} | ds={data_structures} | paradigms={paradigms}")
 
-    # Use AST to extract deeper context
-    try:
-        tree = ast.parse(payload.code)
-    except:
-        tree = None
-
-    functions = []
-    has_recursion = False
-    has_sorting = False
-    has_searching = False
-    has_class = False
-    has_nested_loops = False
-    algorithm_hints = []
-
-    if tree:
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                functions.append(node.name)
-                # Check for recursion
-                for child in ast.walk(node):
-                    if isinstance(child, ast.Call):
-                        if isinstance(child.func, ast.Name):
-                            if child.func.id == node.name:
-                                has_recursion = True
-            if isinstance(node, ast.ClassDef):
-                has_class = True
-            if isinstance(node, ast.For):
-                # Check for nested loops
-                for child in ast.walk(node):
-                    if isinstance(child, ast.For) and child is not node:
-                        has_nested_loops = True
-
-        # Check function names for algorithm hints
-        all_names = [n.id for n in ast.walk(tree) if isinstance(n, ast.Name)]
-        name_str = " ".join(all_names + functions).lower()
-        if any(w in name_str for w in ["sort", "bubble", "merge", "quick", "insertion"]):
-            has_sorting = True
-            algorithm_hints.append("sorting algorithm")
-        if any(w in name_str for w in ["search", "find", "binary", "linear"]):
-            has_searching = True
-            algorithm_hints.append("searching algorithm")
-        if any(w in name_str for w in ["factorial", "fibonacci", "fib", "power", "hanoi"]):
-            algorithm_hints.append("mathematical recursion")
-        if any(w in name_str for w in ["stack", "queue", "linked", "tree", "graph", "node"]):
-            algorithm_hints.append("data structure")
-        if any(w in name_str for w in ["dp", "memo", "cache", "dynamic"]):
-            algorithm_hints.append("dynamic programming")
-        if any(w in name_str for w in ["matrix", "grid", "row", "col"]):
-            algorithm_hints.append("matrix/grid problem")
-
-    # Build rich context
+    # ── Build a rich, specific context block ─────────────────────────────────
     context_lines = []
-    context_lines.append(f"Programming concepts used: {', '.join(concepts)}")
-    if functions:
-        context_lines.append(f"Functions defined: {', '.join(functions)}")
-    if has_recursion:
-        context_lines.append("Uses recursion")
-    if has_nested_loops:
-        context_lines.append("Has nested loops — O(n²) pattern")
-    if has_class:
-        context_lines.append("Uses object-oriented programming")
-    if algorithm_hints:
-        context_lines.append(f"Algorithm type: {', '.join(algorithm_hints)}")
 
+    if algorithms:
+        context_lines.append(f"Primary algorithm(s): {', '.join(algorithms)}")
+    if data_structures:
+        context_lines.append(f"Data structure(s) used: {', '.join(data_structures)}")
+    if paradigms:
+        context_lines.append(f"Programming paradigm(s): {', '.join(paradigms)}")
+
+    # Primary topic = first algorithm, or first DS, or first paradigm
+    primary = (algorithms or data_structures or paradigms or basic_concepts)[0]
+    context_lines.append(f"Primary topic for recommendations: {primary}")
     context = "\n".join(context_lines)
 
     prompt = f"""You are a coding mentor recommending practice problems and learning resources.
 
-Here is the student's code:
-```python
-{payload.code}
-```
-
-Code analysis:
+The student's code uses:
 {context}
 
-Based on EXACTLY what this student is practicing, recommend:
-1. Two LeetCode problems that directly practice the SAME concepts
-2. One high-quality article or documentation page to learn more
+Code:
+```{payload.language}
+{payload.code[:600]}
+```
 
-RULES for LeetCode problems:
-- Must be directly related to concepts in THIS specific code
-- If code uses recursion → recommend recursion problems
-- If code uses sorting → recommend sorting problems  
-- If code uses nested loops → recommend array/matrix problems
-- If code uses OOP → recommend OOP design problems
-- If code uses dynamic programming → recommend DP problems
-- If code uses linked list/tree/graph → recommend those data structure problems
-- Difficulty: Easy or Medium only (student is learning)
-- Use REAL LeetCode problem titles and their actual URLs
+Based on EXACTLY the primary topic ({primary}), recommend:
+1. Two LeetCode problems that directly practice THIS specific algorithm or data structure
+2. One high-quality article to learn more about {primary}
 
-RULES for article:
-- Must be directly relevant to the main concept in this code
-- Prefer: realpython.com, docs.python.org, geeksforgeeks.org, programiz.com
-- Title must describe exactly what the article teaches
+STRICT RULES:
+- LeetCode problems must match the primary topic exactly — NOT generic "array" problems if the topic is "Binary Search"
+- Difficulty: Easy or Medium only
+- Use REAL LeetCode problem titles and actual slugs in the URL
+- Article: prefer realpython.com, docs.python.org, geeksforgeeks.org, or programiz.com
+- Article title must describe exactly what it teaches about {primary}
 
-Return ONLY this JSON structure:
+Algorithm → recommended problems mapping (use these as guidance):
+- Binary Search → "Binary Search" (Easy), "Search in Rotated Sorted Array" (Medium)
+- Two Pointer → "Two Sum II" (Medium), "Valid Palindrome" (Easy)
+- Sliding Window → "Maximum Subarray" (Medium), "Longest Substring Without Repeating Characters" (Medium)
+- Dynamic Programming → "Climbing Stairs" (Easy), "Coin Change" (Medium)
+- Backtracking → "Subsets" (Medium), "Permutations" (Medium)
+- Graph BFS → "Number of Islands" (Medium), "Rotting Oranges" (Medium)
+- Graph DFS → "Clone Graph" (Medium), "Path Sum" (Easy)
+- Recursion → "Fibonacci Number" (Easy), "Power of Two" (Easy)
+- Sorting → "Sort Colors" (Medium), "Merge Intervals" (Medium)
+- Linked List → "Reverse Linked List" (Easy), "Merge Two Sorted Lists" (Easy)
+- Stack → "Valid Parentheses" (Easy), "Min Stack" (Medium)
+- Hash Map → "Two Sum" (Easy), "Group Anagrams" (Medium)
+- Tree → "Inorder Traversal" (Easy), "Maximum Depth of Binary Tree" (Easy)
+- Heap → "Kth Largest Element in an Array" (Medium), "Find Median from Data Stream" (Hard — skip, use Top K Frequent Elements instead)
+- Greedy → "Jump Game" (Medium), "Best Time to Buy and Sell Stock" (Easy)
+- Divide and Conquer → "Merge Sort Array" (Easy), "Search a 2D Matrix" (Medium)
+- Object-Oriented Programming → "Design Parking System" (Easy), "Design HashMap" (Medium)
+
+Return ONLY this JSON:
 {{
   "leetcode": [
-    {{
-      "title": "exact leetcode problem title",
-      "difficulty": "Easy",
-      "url": "https://leetcode.com/problems/exact-slug/"
-    }},
-    {{
-      "title": "exact leetcode problem title",
-      "difficulty": "Medium",
-      "url": "https://leetcode.com/problems/exact-slug/"
-    }}
+    {{"title": "exact problem title", "difficulty": "Easy", "url": "https://leetcode.com/problems/exact-slug/"}},
+    {{"title": "exact problem title", "difficulty": "Medium", "url": "https://leetcode.com/problems/exact-slug/"}}
   ],
   "article": {{
     "title": "exact article title",
-    "url": "https://exact-article-url.com"
+    "url": "https://exact-url.com"
   }}
 }}
 
@@ -898,18 +860,24 @@ Return ONLY valid JSON. No markdown. No explanation."""
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=500,
-            temperature=0.2
+            max_tokens=350,
+            temperature=0.1   # very low — we want deterministic, accurate URLs
         )
         raw = response.choices[0].message.content.strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
-        print(f"[LiveCode Mentor] Recommendations: {raw}")
-        result = json.loads(raw)
-        return result
 
-    except json.JSONDecodeError as e:
-        print(f"[LiveCode Mentor] Recommendations JSON error: {e}")
-        return {"leetcode": [], "article": None}
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            brace_start = raw.find('{')
+            brace_end   = raw.rfind('}')
+            if brace_start != -1 and brace_end != -1:
+                data = json.loads(raw[brace_start:brace_end + 1])
+            else:
+                raise
+
+        return data
+
     except Exception as e:
         print(f"[LiveCode Mentor] Recommendations error: {e}")
         return {"leetcode": [], "article": None}

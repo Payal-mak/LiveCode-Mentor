@@ -683,6 +683,22 @@
         .history-delta-neg { color: #ff6b6b; font-weight: 600; font-family: monospace; }
         .history-reason    { color: var(--vscode-descriptionForeground); flex: 1; margin: 0 8px; }
         .history-total     { color: var(--vscode-foreground); font-family: monospace; font-size: 10px; }
+        /* H8 — pill group label */
+        .pill-group-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 5px;
+        }
+
+        /* H8 — data structure pill (amber) */
+        .ds-pill {
+            background: rgba(255,183,77,0.12);
+            border: 1px solid rgba(255,183,77,0.35);
+            color: #FFB74D;
+        }
     </style>
 </head>
 <body>
@@ -733,21 +749,29 @@
                 </div>
 
                 <!-- H3 NEW — Algorithm type + Paradigm grouped pills -->
+                <!-- H8: Grouped concept card — Algorithm / Data Structure / Paradigm -->
                 <div class="card" id="classification-card" style="display:none;">
-                    <div class="card-title" style="color:#a78bfa;opacity:1;">🧬 Code Classification</div>
+                    <div class="card-title" style="color:#a78bfa;opacity:1;margin-bottom:10px;">🧠 What This Code Uses</div>
 
-                    <!-- Algorithm type row -->
-                    <div id="algo-row" style="display:none; margin-bottom: 10px;">
-                        <div class="classification-row-label" style="color:#7c6ff7;">⚡ Algorithm Type</div>
+                    <!-- Row 1: Algorithm Type -->
+                    <div id="algo-row" style="display:none; margin-bottom:10px;">
+                        <div class="pill-group-label">⚡ Algorithm Type</div>
                         <div id="algo-pills"></div>
                     </div>
 
-                    <!-- Paradigm row -->
+                    <!-- Row 2: Data Structures -->
+                    <div id="ds-row" style="display:none; margin-bottom:10px;">
+                        <div class="pill-group-label">📦 Data Structures</div>
+                        <div id="ds-pills"></div>
+                    </div>
+
+                    <!-- Row 3: Paradigm -->
                     <div id="paradigm-row" style="display:none;">
-                        <div class="classification-row-label" style="color:#4ecdc4;">🧩 Paradigm</div>
+                        <div class="pill-group-label">🧩 Paradigm</div>
                         <div id="paradigm-pills"></div>
                     </div>
                 </div>
+                <!-- END H8 -->
                 <!-- END H3 NEW -->
 
                 <!-- Complexity card -->
@@ -990,54 +1014,68 @@
         }
 
         // ── H3 NEW — renderClassificationPills ───────────────────────────────
+        // ── H8: renderClassificationPills — 3 groups ─────────────────────────
         function renderClassificationPills(data) {
-            const card       = document.getElementById('classification-card');
-            const algoRow    = document.getElementById('algo-row');
-            const paradigmRow= document.getElementById('paradigm-row');
-            const algoPills  = document.getElementById('algo-pills');
+            const card          = document.getElementById('classification-card');
+            const algoRow       = document.getElementById('algo-row');
+            const dsRow         = document.getElementById('ds-row');
+            const paradigmRow   = document.getElementById('paradigm-row');
+            const algoPills     = document.getElementById('algo-pills');
+            const dsPills       = document.getElementById('ds-pills');
             const paradigmPills = document.getElementById('paradigm-pills');
 
-            const algorithms = data.algorithms || [];
-            const paradigms  = data.paradigms  || [];
+            const algorithms      = data.algorithms      || [];
+            const data_structures = data.data_structures || [];
+            const paradigms       = data.paradigms        || [];
 
-            // Nothing to show — hide the whole card
-            if (algorithms.length === 0 && paradigms.length === 0) {
+            // Hide entire card if nothing detected
+            if (!algorithms.length && !data_structures.length && !paradigms.length) {
                 card.style.display = 'none';
                 return;
             }
 
-            // Helper to create a single pill element
-            function makePill(label, bg, color, borderColor) {
+            // ── Pill factory ──────────────────────────────────────────────────
+            function makePill(label, bg, color, border) {
                 const span = document.createElement('span');
                 span.className = 'classification-pill';
                 span.textContent = label;
-                span.style.background   = bg;
-                span.style.color        = color;
-                span.style.border       = '1px solid ' + borderColor;
+                span.style.background = bg;
+                span.style.color      = color;
+                span.style.border     = '1px solid ' + border;
                 return span;
             }
 
-            // Algorithm pills — purple tones
+            // ── Algorithm Type pills — purple ─────────────────────────────────
             algoPills.innerHTML = '';
-            if (algorithms.length > 0) {
-                algorithms.forEach(algo => {
-                    algoPills.appendChild(
-                        makePill(algo, 'rgba(124,111,247,0.12)', '#a78bfa', 'rgba(124,111,247,0.35)')
-                    );
-                });
+            if (algorithms.length) {
+                algorithms.forEach(a =>
+                    algoPills.appendChild(makePill(a,
+                        'rgba(124,111,247,0.13)', '#a78bfa', 'rgba(124,111,247,0.35)'))
+                );
                 algoRow.style.display = 'block';
             } else {
                 algoRow.style.display = 'none';
             }
 
-            // Paradigm pills — teal tones
+            // ── Data Structure pills — amber ──────────────────────────────────
+            dsPills.innerHTML = '';
+            if (data_structures.length) {
+                data_structures.forEach(ds =>
+                    dsPills.appendChild(makePill(ds,
+                        'rgba(255,183,77,0.12)', '#FFB74D', 'rgba(255,183,77,0.35)'))
+                );
+                dsRow.style.display = 'block';
+            } else {
+                dsRow.style.display = 'none';
+            }
+
+            // ── Paradigm pills — teal ─────────────────────────────────────────
             paradigmPills.innerHTML = '';
-            if (paradigms.length > 0) {
-                paradigms.forEach(p => {
-                    paradigmPills.appendChild(
-                        makePill(p, 'rgba(78,205,196,0.12)', '#4ecdc4', 'rgba(78,205,196,0.35)')
-                    );
-                });
+            if (paradigms.length) {
+                paradigms.forEach(p =>
+                    paradigmPills.appendChild(makePill(p,
+                        'rgba(78,205,196,0.12)', '#4ecdc4', 'rgba(78,205,196,0.35)'))
+                );
                 paradigmRow.style.display = 'block';
             } else {
                 paradigmRow.style.display = 'none';
@@ -1045,6 +1083,7 @@
 
             card.style.display = 'block';
         }
+        // ── END H8 ───────────────────────────────────────────────────────────
         // ── END H3 NEW ───────────────────────────────────────────────────────
 
         // ── showExplanation ───────────────────────────────────────────────────
