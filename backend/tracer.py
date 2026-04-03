@@ -1,100 +1,179 @@
+# backend/tracer.py
+# Execution tracer — uses sys.settrace to walk Python code line by line.
+# Returns steps with line number, source content, and variable snapshot.
+
 import sys
 import io
-import contextlib
-import ast
-import builtins
+import copy
+import textwrap
+import traceback
+from typing import Any
 
-def trace_code(code: str, max_steps: int = 50, mock_inputs: list = None):
-    steps = []
-    stdout_capture = io.StringIO()
 
-    # Mock input() so it never hangs
-    input_values = iter(mock_inputs or ["5", "1 2 3 4 5", "0", "10", "hello", "3"])
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+_SAFE_TYPES = (int, float, bool, str, type(None))
+
+def _safe_repr(val: Any, depth: int = 0) -> str:
+    """Return a short, safe string representation of a value."""
+    if depth > 2:
+        return "..."
+    if isinstance(val, _SAFE_TYPES):
+        r = repr(val)
+        return r if len(r) <= 60 else r[:57] + "..."
+    if isinstance(val, (list, tuple)):
+        bracket = ("[", "]") if isinstance(val, list) else ("(", ")")
+        inner = [_safe_repr(v, depth + 1) for v in val[:6]]
+        suffix = ", ..." if len(val) > 6 else ""
+        return bracket[0] + ", ".join(inner) + suffix + bracket[1]
+    if isinstance(val, dict):
+        items = [f"{_safe_repr(k, depth+1)}: {_safe_repr(v, depth+1)}" for k, v in list(val.items())[:5]]
+        suffix = ", ..." if len(val) > 5 else ""
+        return "{" + ", ".join(items) + suffix + "}"
+    if isinstance(val, set):
+        items = [_safe_repr(v, depth + 1) for v in list(val)[:5]]
+        suffix = ", ..." if len(val) > 5 else ""
+        return "{" + ", ".join(items) + suffix + "}"
+    try:
+        r = repr(val)
+        return r if len(r) <= 60 else r[:57] + "..."
+    except Exception:
+        return "<unprintable>"
+
+
+def _snapshot_vars(frame_locals: dict) -> dict:
+    """
+    Extract user-visible variables from a frame's locals.
+    Skips dunder names, imported modules, functions, classes.
+    """
+    import types
+    skip_types = (types.ModuleType, types.FunctionType, type)
+    result = {}
+    for k, v in frame_locals.items():
+        if k.startswith("__"):
+            continue
+        if isinstance(v, skip_types):
+            continue
+        try:
+            result[k] = _safe_repr(v)
+        except Exception:
+            pass
+    return result
+
+
+# ── Core tracer ────────────────────────────────────────────────────────────────
+
+def trace_code(code: str, max_steps: int = 60, mock_inputs: list[str] | None = None) -> dict:
+    """
+    Execute `code` under sys.settrace and return a step-by-step trace.
+
+    Returns:
+        {
+          "steps":       [ {"line": int, "line_content": str, "vars": dict}, ... ],
+          "output":      str,
+          "success":     bool,
+          "error":       str | None,
+          "total_steps": int,
+        }
+    """
+    # Normalise indentation (handles pasted code with leading spaces)
+    code = textwrap.dedent(code)
+    source_lines = code.splitlines()
+
+    steps: list[dict] = []
+    output_buf = io.StringIO()
+    error_msg: str | None = None
+    success = True
+
+    # Mock input() if needed
+    mock_iter = iter(mock_inputs or [])
 
     def mock_input(prompt=""):
         try:
-            val = next(input_values)
-            stdout_capture.write(str(prompt))
+            val = next(mock_iter)
+            # Echo prompt + value to output so the stepper shows it
+            if prompt:
+                output_buf.write(str(prompt))
+            output_buf.write(str(val) + "\n")
             return val
         except StopIteration:
-            return "0"
+            return ""
+
+    # The trace function called by Python on every line/call/return
+    # We only care about 'line' events in the top-level frame (and called frames).
+    target_filename = "<string>"
 
     def tracer(frame, event, arg):
-        if event == 'line' and len(steps) < max_steps:
-            if frame.f_code.co_filename == '<string>':
-                local_vars = {}
-                for k, v in frame.f_locals.items():
-                    if not k.startswith('_'):
-                        try:
-                            # Handle different types nicely
-                            if isinstance(v, (int, float, bool, str)):
-                                local_vars[k] = repr(v)
-                            elif isinstance(v, (list, tuple)):
-                                if len(v) <= 10:
-                                    local_vars[k] = repr(v)
-                                else:
-                                    local_vars[k] = f"{type(v).__name__}[{len(v)} items]"
-                            elif isinstance(v, dict):
-                                if len(v) <= 5:
-                                    local_vars[k] = repr(v)
-                                else:
-                                    local_vars[k] = f"dict({len(v)} keys)"
-                            elif callable(v):
-                                pass  # Skip functions
-                            else:
-                                val = str(v)
-                                local_vars[k] = val[:40] + "..." if len(val) > 40 else val
-                        except:
-                            local_vars[k] = "<?>"
+        nonlocal steps
+        if event != "line":
+            return tracer  # keep tracing sub-calls
+        if frame.f_code.co_filename != target_filename:
+            return tracer  # skip stdlib internals
 
-                # Get the actual source line
-                try:
-                    source_lines = code.split('\n')
-                    line_content = source_lines[frame.f_lineno - 1].strip()
-                except:
-                    line_content = ""
+        lineno = frame.f_lineno
+        if len(steps) >= max_steps:
+            return None  # stop tracing — too many steps
 
-                steps.append({
-                    "line": frame.f_lineno,
-                    "line_content": line_content,
-                    "vars": local_vars,
-                })
+        line_content = ""
+        if 1 <= lineno <= len(source_lines):
+            line_content = source_lines[lineno - 1].rstrip()
+
+        # Snapshot locals — copy so later mutations don't affect earlier steps
+        try:
+            vars_snap = _snapshot_vars(dict(frame.f_locals))
+        except Exception:
+            vars_snap = {}
+
+        steps.append({
+            "line":         lineno,
+            "line_content": line_content,
+            "vars":         vars_snap,
+        })
         return tracer
 
+    # Build sandbox globals — give access to builtins but override input/print
+    sandbox_globals = {
+        "__name__":    "__main__",
+        "__builtins__": __builtins__,
+        "input":        mock_input,
+        "print":        lambda *a, **kw: output_buf.write(
+                            " ".join(str(x) for x in a) +
+                            kw.get("end", "\n")
+                        ),
+    }
+
+    old_trace = sys.gettrace()
     try:
-        compiled = compile(code, '<string>', 'exec')
-
-        safe_globals = {
-            "__name__": "__main__",
-            "__builtins__": {
-                k: v for k, v in vars(builtins).items()
-                if k not in ('open', 'eval', 'exec', '__import__')
-            }
-        }
-        # Override input with mock
-        safe_globals["__builtins__"]["input"] = mock_input
-        safe_globals["input"] = mock_input
-
-        with contextlib.redirect_stdout(stdout_capture):
-            sys.settrace(tracer)
-            exec(compiled, safe_globals)
-            sys.settrace(None)
-
-        return {
-            "success": True,
-            "steps": steps,
-            "output": stdout_capture.getvalue(),
-            "total_steps": len(steps)
-        }
-
-    except Exception as e:
-        sys.settrace(None)
-        return {
-            "success": len(steps) > 0,
-            "steps": steps,
-            "error": str(e),
-            "output": stdout_capture.getvalue(),
-            "total_steps": len(steps)
-        }
+        compiled = compile(code, target_filename, "exec")
+        sys.settrace(tracer)
+        exec(compiled, sandbox_globals)  # noqa: S102
+    except Exception as exc:
+        success = False
+        tb_lines = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        # Filter out our own frames from the traceback
+        filtered = [l for l in tb_lines if 'tracer.py' not in l and 'exec(compiled' not in l]
+        error_msg = "".join(filtered).strip()
+        if not error_msg:
+            error_msg = f"{type(exc).__name__}: {exc}"
     finally:
-        sys.settrace(None)
+        sys.settrace(old_trace)
+
+    output = output_buf.getvalue()
+
+    # If we got zero steps (e.g. empty/comment-only code), return a clear message
+    if not steps and not error_msg:
+        return {
+            "steps":       [],
+            "output":      output,
+            "success":     False,
+            "error":       "No executable lines found. Add some Python code and try again.",
+            "total_steps": 0,
+        }
+
+    return {
+        "steps":       steps,
+        "output":      output,
+        "success":     success,
+        "error":       error_msg,
+        "total_steps": len(steps),
+    }
