@@ -35,7 +35,10 @@ vscode.workspace.onDidChangeTextDocument((event) => {
                     message: `📋 Try typing this yourself! -5 pts`,
                     score: res.data.score
                 });
-            }).catch(() => {});
+            }).catch(() => {
+                vscode.window.showErrorMessage('LiveCode Mentor: Backend not reachable!');
+                sidebarProvider.sendMessage('backendOffline', {});
+            });
 
         } else {
             // Normal typing

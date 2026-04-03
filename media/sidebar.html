@@ -5,1125 +5,907 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LiveCode Mentor</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: var(--vscode-font-family);
-            font-size: var(--vscode-font-size);
-            color: var(--vscode-foreground);
-            background: var(--vscode-sideBar-background);
-            padding: 0;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            background: var(--vscode-activityBar-background);
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--vscode-panel-border);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .header-icon { font-size: 18px; }
-
-        .header-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--vscode-activityBar-foreground);
-            letter-spacing: 0.5px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #4CAF50;
-            margin-left: auto;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-
-        .tabs {
-            display: flex;
-            background: var(--vscode-editorGroupHeader-tabsBackground);
-            border-bottom: 1px solid var(--vscode-panel-border);
-        }
-
-        .tab {
-            flex: 1;
-            padding: 8px 4px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 500;
-            cursor: pointer;
-            color: var(--vscode-tab-inactiveForeground);
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-            letter-spacing: 0.3px;
-        }
-
-        .tab:hover {
-            color: var(--vscode-tab-activeForeground);
-            background: var(--vscode-tab-hoverBackground);
-        }
-
-        .tab.active {
-            color: var(--vscode-tab-activeForeground);
-            border-bottom: 2px solid var(--vscode-focusBorder);
-            background: var(--vscode-tab-activeBackground);
-        }
-
-        .content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-        }
-
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
-
-        .loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            gap: 12px;
-            color: var(--vscode-descriptionForeground);
-        }
-
-        .spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid var(--vscode-panel-border);
-            border-top: 2px solid var(--vscode-focusBorder);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            font-size: 12px;
-            text-align: center;
-            opacity: 0.7;
-        }
-
-        .card {
-            background: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .card-title {
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 8px;
-            opacity: 0.6;
-        }
-
-        .card-title.blue  { color: #4FC3F7; }
-        .card-title.green { color: #81C784; }
-        .card-title.amber { color: #FFB74D; }
-        .card-title.red   { color: #E57373; }
-
-        .card-body {
-            font-size: 12px;
-            line-height: 1.6;
-            color: var(--vscode-foreground);
-        }
-
-        .concepts {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 6px;
-        }
-
-        .concept-pill {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            background: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            font-weight: 500;
-        }
-
-        .error-card {
-            background: rgba(229, 115, 115, 0.1);
-            border: 1px solid rgba(229, 115, 115, 0.3);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .hint-card {
-            background: rgba(255, 183, 77, 0.1);
-            border: 1px solid rgba(255, 183, 77, 0.3);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 8px;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: opacity 0.2s;
-        }
-
-        .btn:hover { opacity: 0.85; }
-
-        .btn-primary {
-            background: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--vscode-descriptionForeground);
-            font-size: 12px;
-            opacity: 0.7;
-        }
-
-        .empty-icon { font-size: 32px; margin-bottom: 8px; }
-
-        #mermaid-container {
-            background: var(--vscode-editor-background);
-            border-radius: 6px;
-            padding: 12px;
-            overflow-x: auto;
-            font-size: 11px;
-            white-space: pre;
-            font-family: var(--vscode-editor-font-family);
-            color: var(--vscode-foreground);
-        }
-
-        .show-flow-btn {
-            width: 100%;
-            padding: 10px;
-            border: 1px dashed var(--vscode-panel-border);
-            border-radius: 6px;
-            background: transparent;
-            color: var(--vscode-foreground);
-            font-size: 12px;
-            cursor: pointer;
-            margin-bottom: 12px;
-        }
-
-        .show-flow-btn:hover {
-            background: var(--vscode-list-hoverBackground);
-        }
-
-        .success-state {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            background: rgba(129, 199, 132, 0.1);
-            border: 1px solid rgba(129, 199, 132, 0.3);
-            border-radius: 6px;
-            font-size: 12px;
-            color: #81C784;
-            margin-bottom: 12px;
-        }
-
-        /* Progress tab */
-        .concept-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        .concept-bar-name {
-            font-size: 11px;
-            color: var(--vscode-foreground);
-            min-width: 120px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .concept-bar-track {
-            flex: 1;
-            height: 6px;
-            background: var(--vscode-panel-border);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .concept-bar-fill {
-            height: 100%;
-            background: #7c6ff7;
-            border-radius: 3px;
-            transition: width 0.6s ease;
-        }
-
-        .concept-bar-count {
-            font-size: 10px;
-            font-family: monospace;
-            color: var(--vscode-descriptionForeground);
-            min-width: 20px;
-            text-align: right;
-        }
-
-        /* Tab font size fix for 4 tabs */
-        .tabs .tab { font-size: 10px; }
-
-        /* Resource recommendations */
-        .resource-section { margin-top: 12px; }
-
-        .resource-title {
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 8px;
-            color: #ffd93d;
-            opacity: 0.8;
-        }
-
-        .resource-card {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 10px;
-            background: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 6px;
-            margin-bottom: 6px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: border-color 0.2s;
-        }
-
-        .resource-card:hover { border-color: var(--vscode-focusBorder); }
-
-        .resource-card-icon {
-            font-size: 14px;
-            min-width: 20px;
-            text-align: center;
-        }
-
-        .resource-card-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .resource-card-title {
-            font-size: 12px;
-            color: var(--vscode-foreground);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .resource-card-meta {
-            font-size: 10px;
-            color: var(--vscode-descriptionForeground);
-            margin-top: 2px;
-        }
-
-        .difficulty-easy   { color: #6bcb77; font-weight: 600; }
-        .difficulty-medium { color: #ffd93d; font-weight: 600; }
-
-        /* Stepper variable pills */
-        .var-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            font-family: monospace;
-            padding: 3px 8px;
-            background: rgba(124,111,247,0.12);
-            border: 1px solid rgba(124,111,247,0.3);
-            border-radius: 4px;
-            margin: 3px 3px 3px 0;
-            color: var(--vscode-foreground);
-        }
-
-        .var-name  { color: #7c6ff7; font-weight: 600; }
-        .var-value { color: #6bcb77; }
-
-        /* Complexity badges */
-        .complexity-row {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .complexity-badge {
-            flex: 1;
-            padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid var(--vscode-panel-border);
-            background: var(--vscode-editor-background);
-        }
-
-        .complexity-notation {
-            font-family: monospace;
-            font-size: 16px;
-            font-weight: 700;
-            color: #4ecdc4;
-            line-height: 1;
-        }
-
-        .complexity-label {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--vscode-descriptionForeground);
-            margin-top: 3px;
-        }
-
-        .complexity-reason {
-            font-size: 10px;
-            color: var(--vscode-descriptionForeground);
-            margin-top: 4px;
-            line-height: 1.4;
-        }
-
-        /* Auto test results */
-        .test-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            padding: 8px 10px;
-            background: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 6px;
-            margin-bottom: 6px;
-            font-size: 11px;
-        }
-
-        .test-status { font-size: 13px; min-width: 18px; }
-        .test-content { flex: 1; }
-
-        .test-input {
-            font-family: monospace;
-            color: var(--vscode-foreground);
-            margin-bottom: 3px;
-        }
-
-        .test-output  { font-family: monospace; color: #6bcb77; }
-        .test-desc    { color: var(--vscode-descriptionForeground); font-size: 10px; margin-bottom: 3px; }
-        .test-error   { color: #ff6b6b; font-family: monospace; }
-
-        /* Mode toggle */
-        .mode-toggle { display: flex; align-items: center; gap: 5px; }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 28px;
-            height: 16px;
-        }
-
-        .switch input { opacity: 0; width: 0; height: 0; }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: #6bcb77;
-            border-radius: 16px;
-            transition: 0.3s;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 10px; width: 10px;
-            left: 3px; bottom: 3px;
-            background: white;
-            border-radius: 50%;
-            transition: 0.3s;
-        }
-
-        input:checked + .slider { background: #7c6ff7; }
-        input:checked + .slider:before { transform: translateX(12px); }
-
-        /* Dev mode — hide learning-only cards */
-        body.dev-mode .concepts-card,
-        body.dev-mode #resources-card,
-        body.dev-mode #autotest-card,
-        body.dev-mode #hint-empty,
-        body.dev-mode #hint-content,
-        body.dev-mode #classification-card { /* H3 NEW — also hide pills in dev mode */
-            display: none !important;
-        }
-
-        body.dev-mode .card-title.green { color: #7c6ff7; }
-
-        /* Click to explain */
-        .line-explain-card {
-            background: rgba(78,205,196,0.08);
-            border: 1px solid rgba(78,205,196,0.3);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .line-explain-code {
-            font-family: monospace;
-            font-size: 11px;
-            background: var(--vscode-editor-background);
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            color: #4ecdc4;
-            word-break: break-all;
-        }
-
-        .line-explain-text {
-            font-size: 12px;
-            line-height: 1.6;
-            color: var(--vscode-foreground);
-        }
-
-        /* H3 NEW — Classification pill rows */
-        .classification-row-label {
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 5px;
-        }
-
-        .classification-pill {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            white-space: nowrap;
-            margin: 2px 3px 2px 0;
-        }
-        /* Score + penalty toast */
-        .score-toast {
-            position: fixed;
-            bottom: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 9999;
-            pointer-events: none;
-            animation: toastFade 2.5s ease forwards;
-            white-space: nowrap;
-        }
-
-        .toast-reward  { background: rgba(107,203,119,0.95); color: #1a1a1a; }
-        .toast-penalty { background: rgba(255,107,107,0.95); color: #1a1a1a; }
-        .toast-badge   { background: rgba(255,217,61,0.95);  color: #1a1a1a; }
-
-        @keyframes toastFade {
-            0%   { opacity: 0; transform: translateX(-50%) translateY(12px); }
-            15%  { opacity: 1; transform: translateX(-50%) translateY(0);    }
-            75%  { opacity: 1; }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-        }
-
-        /* Badge pill */
-        .badge-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            padding: 3px 8px;
-            background: rgba(255,217,61,0.12);
-            border: 1px solid rgba(255,217,61,0.3);
-            border-radius: 10px;
-            color: #ffd93d;
-            margin: 3px;
-        }
-
-        .badge-pill.locked {
-            opacity: 0.35;
-            filter: grayscale(1);
-        }
-
-        /* Progress tab */
-        .badge-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .badge-card {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid var(--vscode-panel-border);
-            background: var(--vscode-editor-background);
-            transition: opacity 0.2s;
-        }
-
-        .badge-card.earned {
-            background: rgba(255,217,61,0.08);
-            border-color: rgba(255,217,61,0.3);
-        }
-
-        .badge-card.locked {
-            opacity: 0.4;
-            filter: grayscale(0.8);
-        }
-
-        .badge-icon {
-            font-size: 20px;
-            min-width: 24px;
-            text-align: center;
-            line-height: 1;
-        }
-
-        .badge-info { flex: 1; min-width: 0; }
-
-        .badge-name {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--vscode-foreground);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .badge-desc {
-            font-size: 10px;
-            color: var(--vscode-descriptionForeground);
-            margin-top: 1px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .badge-check {
-            font-size: 12px;
-            color: #ffd93d;
-            min-width: 14px;
-        }
-
-        /* Concept bar */
-        .concept-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
-        }
-
-        .concept-bar-name {
-            font-size: 11px;
-            color: var(--vscode-foreground);
-            min-width: 130px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .concept-bar-track {
-            flex: 1;
-            height: 5px;
-            background: var(--vscode-panel-border);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .concept-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #7c6ff7, #4ecdc4);
-            border-radius: 3px;
-            transition: width 0.6s ease;
-        }
-
-        .concept-bar-count {
-            font-size: 10px;
-            font-family: monospace;
-            color: var(--vscode-descriptionForeground);
-            min-width: 22px;
-            text-align: right;
-        }
-
-        /* Score history */
-        .history-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid var(--vscode-panel-border);
-            font-size: 11px;
-        }
-
-        .history-row:last-child { border-bottom: none; }
-
-        .history-delta-pos { color: #6bcb77; font-weight: 600; font-family: monospace; }
-        .history-delta-neg { color: #ff6b6b; font-weight: 600; font-family: monospace; }
-        .history-reason    { color: var(--vscode-descriptionForeground); flex: 1; margin: 0 8px; }
-        .history-total     { color: var(--vscode-foreground); font-family: monospace; font-size: 10px; }
-        /* H8 — pill group label */
-        .pill-group-label {
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--vscode-descriptionForeground);
-            margin-bottom: 5px;
-        }
-
-        /* H8 — data structure pill (amber) */
-        .ds-pill {
-            background: rgba(255,183,77,0.12);
-            border: 1px solid rgba(255,183,77,0.35);
-            color: #FFB74D;
-        }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: var(--vscode-font-family);
+        font-size: var(--vscode-font-size);
+        color: var(--vscode-foreground);
+        background: var(--vscode-sideBar-background);
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: border 0.3s;
+    }
+
+    /* Dev mode border indicator */
+    body.dev-mode {
+        border-left: 3px solid #7c6ff7;
+    }
+
+    /* ── Header ─────────────────────────────────── */
+    .header {
+        background: var(--vscode-activityBar-background);
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--vscode-panel-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .header-icon { font-size: 16px; }
+
+    .header-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--vscode-activityBar-foreground);
+        letter-spacing: 0.5px;
+        line-height: 1.2;
+    }
+
+    /* ── Status dot ─────────────────────────────── */
+    .status-dot {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: #4caf50;
+        transition: background 0.4s;
+    }
+    .status-dot.offline { background: #ff6b6b; }
+    .status-dot.thinking {
+        background: #ffd93d;
+        animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── Tabs ────────────────────────────────────── */
+    .tabs {
+        display: flex;
+        background: var(--vscode-editorGroupHeader-tabsBackground);
+        border-bottom: 1px solid var(--vscode-panel-border);
+        flex-shrink: 0;
+    }
+
+    .tab {
+        flex: 1;
+        padding: 7px 2px;
+        text-align: center;
+        font-size: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        color: var(--vscode-tab-inactiveForeground);
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+
+    .tab:hover {
+        color: var(--vscode-tab-activeForeground);
+        background: var(--vscode-tab-hoverBackground);
+    }
+
+    .tab.active {
+        color: var(--vscode-tab-activeForeground);
+        border-bottom: 2px solid var(--vscode-focusBorder);
+        background: var(--vscode-tab-activeBackground);
+        font-weight: 700;
+    }
+
+    /* ── Content area ────────────────────────────── */
+    .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px;
+        scroll-behavior: smooth;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Skeleton loader ─────────────────────────── */
+    .skeleton {
+        background: var(--vscode-editor-background);
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 10px;
+        padding: 14px;
+        border: 1px solid var(--vscode-panel-border);
+    }
+
+    .skeleton-line {
+        height: 10px;
+        border-radius: 5px;
+        background: var(--vscode-panel-border);
+        margin-bottom: 8px;
+        animation: shimmer 1.4s ease-in-out infinite;
+    }
+
+    .skeleton-line:last-child { margin-bottom: 0; }
+    .skeleton-line.w100 { width: 100%; }
+    .skeleton-line.w80  { width: 80%;  }
+    .skeleton-line.w60  { width: 60%;  }
+    .skeleton-line.w40  { width: 40%;  }
+    .skeleton-line.tall { height: 16px; }
+
+    @keyframes shimmer {
+        0%   { opacity: 0.4; }
+        50%  { opacity: 0.9; }
+        100% { opacity: 0.4; }
+    }
+
+    /* ── Cards ───────────────────────────────────── */
+    .card {
+        background: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
+        animation: fadeSlideIn 0.2s ease;
+    }
+
+    @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0);   }
+    }
+
+    .card-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+        opacity: 0.75;
+    }
+
+    .card-body { font-size: 12px; line-height: 1.65; }
+
+    .card-title.blue   { color: #4FC3F7; }
+    .card-title.green  { color: #81C784; }
+    .card-title.amber  { color: #FFB74D; }
+    .card-title.red    { color: #E57373; }
+
+    /* ── Spinner (fallback) ──────────────────────── */
+    .loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+        gap: 10px;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    .spinner {
+        width: 20px; height: 20px;
+        border: 2px solid var(--vscode-panel-border);
+        border-top-color: var(--vscode-focusBorder);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text { font-size: 11px; text-align: center; opacity: 0.65; line-height: 1.5; }
+
+    /* ── Empty states ────────────────────────────── */
+    .empty-state {
+        text-align: center;
+        padding: 36px 20px;
+        color: var(--vscode-descriptionForeground);
+    }
+    .empty-icon  { font-size: 28px; margin-bottom: 8px; opacity: 0.6; }
+    .empty-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .empty-desc  { font-size: 11px; line-height: 1.6; opacity: 0.7; }
+
+    /* ── Timeout banner ─────────────────────────── */
+    .timeout-banner {
+        display: none;
+        padding: 8px 12px;
+        background: rgba(255,183,77,0.1);
+        border: 1px solid rgba(255,183,77,0.3);
+        border-radius: 6px;
+        font-size: 11px;
+        color: #FFB74D;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    /* ── Error / hint / success cards ──────────────── */
+    .error-card {
+        background: rgba(229,115,115,0.08);
+        border: 1px solid rgba(229,115,115,0.3);
+        border-radius: 6px; padding: 12px;
+        margin-bottom: 10px;
+        animation: fadeSlideIn 0.2s ease;
+    }
+
+    .hint-card {
+        background: rgba(255,183,77,0.08);
+        border: 1px solid rgba(255,183,77,0.3);
+        border-radius: 6px; padding: 12px;
+        margin-bottom: 10px;
+        animation: fadeSlideIn 0.2s ease;
+    }
+
+    .success-state {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 12px;
+        background: rgba(129,199,132,0.1);
+        border: 1px solid rgba(129,199,132,0.3);
+        border-radius: 6px; font-size: 12px;
+        color: #81C784; margin-bottom: 10px;
+        animation: fadeSlideIn 0.2s ease;
+    }
+
+    /* ── Concept pills ───────────────────────────── */
+    .concepts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+
+    .concept-pill {
+        font-size: 10px; padding: 2px 8px;
+        border-radius: 10px;
+        background: var(--vscode-badge-background);
+        color: var(--vscode-badge-foreground);
+        font-weight: 500;
+        transition: transform 0.15s;
+    }
+    .concept-pill:hover { transform: scale(1.05); }
+
+    .algo-pill {
+        background: rgba(124,111,247,0.15);
+        border: 1px solid rgba(124,111,247,0.35);
+        color: #9d95f5;
+    }
+
+    .paradigm-pill {
+        background: rgba(78,205,196,0.12);
+        border: 1px solid rgba(78,205,196,0.3);
+        color: #4ecdc4;
+    }
+
+    .pill-group-label {
+        font-size: 9px; text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--vscode-descriptionForeground);
+        margin-bottom: 4px; margin-top: 8px;
+    }
+
+    /* ── Buttons ─────────────────────────────────── */
+    .btn {
+        width: 100%; padding: 8px;
+        border: none; border-radius: 4px;
+        font-size: 12px; font-weight: 500;
+        cursor: pointer; margin-top: 8px;
+        transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover   { opacity: 0.87; }
+    .btn:active  { transform: scale(0.98); }
+    .btn-primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+
+    /* ── Complexity ──────────────────────────────── */
+    .complexity-row { display: flex; gap: 8px; margin-top: 8px; }
+
+    .complexity-badge {
+        flex: 1; padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--vscode-panel-border);
+        background: var(--vscode-editor-background);
+    }
+
+    .complexity-notation { font-family: monospace; font-size: 15px; font-weight: 700; color: #4ecdc4; line-height: 1; }
+    .complexity-label    { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--vscode-descriptionForeground); margin-top: 3px; }
+    .complexity-reason   { font-size: 10px; color: var(--vscode-descriptionForeground); margin-top: 4px; line-height: 1.4; }
+
+    /* ── Level badge ─────────────────────────────── */
+    #level-badge {
+        font-size: 9px; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px;
+        transition: all 0.3s;
+    }
+
+    /* ── Resources ───────────────────────────────── */
+    .resource-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; color: #ffd93d; opacity: 0.8; }
+
+    .resource-card {
+        display: flex; align-items: center; gap: 9px;
+        padding: 7px 9px;
+        background: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-radius: 6px; margin-bottom: 5px;
+        cursor: pointer;
+        transition: border-color 0.15s, transform 0.1s;
+    }
+    .resource-card:hover { border-color: var(--vscode-focusBorder); transform: translateX(2px); }
+
+    .resource-card-icon  { font-size: 13px; min-width: 18px; text-align: center; }
+    .resource-card-content { flex: 1; min-width: 0; }
+    .resource-card-title { font-size: 11px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .resource-card-meta  { font-size: 10px; color: var(--vscode-descriptionForeground); margin-top: 2px; }
+    .difficulty-easy   { color: #6bcb77; font-weight: 600; }
+    .difficulty-medium { color: #ffd93d; font-weight: 600; }
+
+    /* ── Auto tests ──────────────────────────────── */
+    .test-row {
+        display: flex; align-items: flex-start; gap: 8px;
+        padding: 7px 9px;
+        background: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-radius: 6px; margin-bottom: 5px;
+        font-size: 11px;
+        animation: fadeSlideIn 0.2s ease;
+    }
+
+    .test-status  { font-size: 12px; min-width: 16px; }
+    .test-content { flex: 1; }
+    .test-input   { font-family: monospace; color: var(--vscode-foreground); margin-bottom: 2px; }
+    .test-output  { font-family: monospace; color: #6bcb77; }
+    .test-error   { font-family: monospace; color: #ff6b6b; }
+    .test-desc    { color: var(--vscode-descriptionForeground); font-size: 10px; margin-bottom: 2px; }
+
+    /* ── Line explain ────────────────────────────── */
+    .line-explain-card {
+        background: rgba(78,205,196,0.07);
+        border: 1px solid rgba(78,205,196,0.3);
+        border-radius: 6px; padding: 12px;
+        margin-bottom: 10px;
+        animation: fadeSlideIn 0.2s ease;
+    }
+    .line-explain-code {
+        font-family: monospace; font-size: 11px;
+        background: var(--vscode-editor-background);
+        padding: 4px 8px; border-radius: 4px;
+        margin-bottom: 8px; color: #4ecdc4;
+        word-break: break-all;
+    }
+    .line-explain-text { font-size: 12px; line-height: 1.65; }
+
+    /* ── Flow tab ────────────────────────────────── */
+    #mermaid-container {
+        background: var(--vscode-editor-background);
+        border-radius: 6px; padding: 12px;
+        overflow-x: auto; font-size: 11px;
+        white-space: pre; font-family: var(--vscode-editor-font-family);
+        border: 1px solid var(--vscode-panel-border);
+    }
+
+    .show-flow-btn {
+        width: 100%; padding: 9px;
+        border: 1px dashed var(--vscode-panel-border);
+        border-radius: 6px; background: transparent;
+        color: var(--vscode-foreground); font-size: 12px;
+        cursor: pointer; margin-bottom: 10px;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .show-flow-btn:hover {
+        background: var(--vscode-list-hoverBackground);
+        border-color: var(--vscode-focusBorder);
+    }
+
+    /* ── Var pills (stepper) ─────────────────────── */
+    .var-pill {
+        display: inline-flex; align-items: center; gap: 3px;
+        font-size: 11px; font-family: monospace;
+        padding: 2px 7px;
+        background: rgba(124,111,247,0.1);
+        border: 1px solid rgba(124,111,247,0.25);
+        border-radius: 4px; margin: 2px;
+        color: var(--vscode-foreground);
+    }
+    .var-name  { color: #9d95f5; font-weight: 600; }
+    .var-value { color: #6bcb77; }
+
+    /* ── Mode toggle ─────────────────────────────── */
+    .mode-toggle { display: flex; align-items: center; gap: 5px; }
+    .switch { position: relative; display: inline-block; width: 28px; height: 16px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #6bcb77; border-radius: 16px; transition: 0.3s; }
+    .slider:before { position: absolute; content: ""; height: 10px; width: 10px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+    input:checked + .slider { background: #7c6ff7; }
+    input:checked + .slider:before { transform: translateX(12px); }
+
+    /* ── Progress tab ────────────────────────────── */
+    .badge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+
+    .badge-card {
+        display: flex; align-items: center; gap: 7px;
+        padding: 8px 9px; border-radius: 6px;
+        border: 1px solid var(--vscode-panel-border);
+        background: var(--vscode-editor-background);
+        transition: all 0.2s;
+    }
+    .badge-card.earned {
+        background: rgba(255,217,61,0.07);
+        border-color: rgba(255,217,61,0.3);
+    }
+    .badge-card.earned:hover { transform: translateY(-1px); }
+    .badge-card.locked { opacity: 0.38; filter: grayscale(0.7); }
+
+    .badge-icon  { font-size: 18px; min-width: 22px; text-align: center; line-height: 1; }
+    .badge-info  { flex: 1; min-width: 0; }
+    .badge-name  { font-size: 10px; font-weight: 700; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .badge-desc  { font-size: 9px; color: var(--vscode-descriptionForeground); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .badge-check { font-size: 11px; color: #ffd93d; min-width: 12px; }
+
+    .concept-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .concept-bar-name  { font-size: 11px; color: var(--vscode-foreground); min-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .concept-bar-track { flex: 1; height: 5px; background: var(--vscode-panel-border); border-radius: 3px; overflow: hidden; }
+    .concept-bar-fill  { height: 100%; background: linear-gradient(90deg,#7c6ff7,#4ecdc4); border-radius: 3px; transition: width 0.7s ease; }
+    .concept-bar-count { font-size: 10px; font-family: monospace; color: var(--vscode-descriptionForeground); min-width: 20px; text-align: right; }
+
+    .history-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--vscode-panel-border); font-size: 11px; }
+    .history-row:last-child { border-bottom: none; }
+    .history-delta-pos { color: #6bcb77; font-weight: 600; font-family: monospace; }
+    .history-delta-neg { color: #ff6b6b; font-weight: 600; font-family: monospace; }
+    .history-reason    { color: var(--vscode-descriptionForeground); flex: 1; margin: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-total     { color: var(--vscode-foreground); font-family: monospace; font-size: 10px; }
+
+    /* ── Toasts ──────────────────────────────────── */
+    .score-toast {
+        position: fixed; bottom: 16px; left: 50%;
+        transform: translateX(-50%);
+        padding: 7px 16px; border-radius: 20px;
+        font-size: 12px; font-weight: 600;
+        z-index: 9999; pointer-events: none;
+        animation: toastAnim 2.8s ease forwards;
+        white-space: nowrap; max-width: 90%;
+        text-overflow: ellipsis; overflow: hidden;
+    }
+
+    .toast-reward  { background: rgba(107,203,119,0.95); color: #0d2010; }
+    .toast-penalty { background: rgba(255,107,107,0.95); color: #2a0a0a; }
+    .toast-badge   { background: rgba(255,217,61,0.95);  color: #2a1f00; }
+    .toast-info    { background: rgba(78,205,196,0.95);  color: #001a19; }
+
+    @keyframes toastAnim {
+        0%   { opacity: 0; transform: translateX(-50%) translateY(14px); }
+        12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+        78%  { opacity: 1; }
+        100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+    }
+
+    /* Badge flash animation */
+    @keyframes badgeFlash {
+        0%   { box-shadow: 0 0 0 0 rgba(255,217,61,0.7); }
+        50%  { box-shadow: 0 0 0 8px rgba(255,217,61,0); }
+        100% { box-shadow: 0 0 0 0 rgba(255,217,61,0); }
+    }
+
+    .badge-card.flash { animation: badgeFlash 0.6s ease 3; }
+
+    /* Score count-up animation */
+    @keyframes scorePopup {
+        0%   { transform: scale(1); }
+        50%  { transform: scale(1.25); color: #ffd93d; }
+        100% { transform: scale(1); }
+    }
+
+    .score-pop { animation: scorePopup 0.4s ease; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--vscode-panel-border); border-radius: 2px; }
+
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <span class="header-icon">🎓</span>
-        <span class="header-title">LIVECODE MENTOR</span>
-        <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
-            <div id="score-display" style="font-size:12px;font-weight:600;color:#ffd93d;cursor:pointer;" onclick="switchTab('progress')" title="View your progress">
-                ⭐ 0 pts
-            </div>
-            <div class="mode-toggle">
-                <span class="mode-label" id="mode-learning-label" style="font-size:9px;color:#6bcb77;font-weight:600;">🎓</span>
-                <label class="switch">
-                    <input type="checkbox" id="modeToggle" onchange="handleModeToggle(this.checked)">
-                    <span class="slider"></span>
-                </label>
-                <span class="mode-label" id="mode-dev-label" style="font-size:9px;color:var(--vscode-descriptionForeground);font-weight:600;">⚡</span>
-            </div>
-            <div class="status-dot"></div>
-        </div>
+<!-- HEADER -->
+<div class="header">
+  <span class="header-icon">🎓</span>
+  <div>
+    <div class="header-title">LIVECODE MENTOR</div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+    <div id="score-display"
+         style="font-size:11px;font-weight:700;color:#ffd93d;cursor:pointer;transition:transform 0.2s;"
+         onclick="switchTab('progress')" title="View Progress">⭐ 0 pts</div>
+    <div class="mode-toggle">
+      <span id="mode-learning-label" style="font-size:9px;color:#6bcb77;font-weight:700;">🎓</span>
+      <label class="switch">
+        <input type="checkbox" id="modeToggle" onchange="handleModeToggle(this.checked)">
+        <span class="slider"></span>
+      </label>
+      <span id="mode-dev-label" style="font-size:9px;color:var(--vscode-descriptionForeground);font-weight:700;">⚡</span>
+    </div>
+    <div class="status-dot" id="statusDot" title="Backend status"></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('explanation')">💡 Explain</div>
+  <div class="tab" onclick="switchTab('hint')">🔍 Hint</div>
+  <div class="tab" onclick="switchTab('flow')">🔀 Flow</div>
+  <div class="tab" onclick="switchTab('progress')">📊 Progress</div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- ═══════════════════ EXPLAIN TAB ════════════════════ -->
+  <div class="tab-panel active" id="panel-explanation">
+
+    <!-- Timeout banner -->
+    <div class="timeout-banner" id="timeout-banner">
+      ⏳ AI is thinking... please wait
     </div>
 
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('explanation')">💡 Explain</div>
-        <div class="tab" onclick="switchTab('hint')">🔍 Hint</div>
-        <div class="tab" onclick="switchTab('flow')">🔀 Flow</div>
-        <div class="tab" onclick="switchTab('progress')">📊 Progress</div>
+    <!-- Skeleton loader (shown while loading) -->
+    <div id="explanation-skeleton">
+      <div class="skeleton">
+        <div class="skeleton-line tall w80"></div>
+        <div class="skeleton-line w100"></div>
+        <div class="skeleton-line w60"></div>
+      </div>
+      <div class="skeleton">
+        <div class="skeleton-line w40"></div>
+        <div class="skeleton-line w80"></div>
+        <div class="skeleton-line w60"></div>
+      </div>
     </div>
 
-    <div class="content">
+    <!-- Actual content (hidden until data arrives) -->
+    <div id="explanation-content" style="display:none;">
 
-        <!-- EXPLANATION TAB -->
-        <div class="tab-panel active" id="panel-explanation">
-            <div class="loading" id="explanation-loading">
-                <div class="spinner"></div>
-                <div class="loading-text">Open a Python file and start coding...<br>LiveCode Mentor will analyse your code!</div>
-            </div>
-            <div id="explanation-content" style="display:none;">
-
-                <!-- Main explanation card -->
-                <div class="card">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                        <div class="card-title blue" style="margin-bottom:0;">📖 What your code does</div>
-                        <span id="level-badge" style="display:none;font-size:9px;font-weight:600;padding:2px 8px;border-radius:10px;"></span>
-                    </div>
-                    <div class="card-body" id="explanation-text"></div>
-                </div>
-
-                <!-- H3 NEW — Algorithm type + Paradigm grouped pills -->
-                <!-- H8: Grouped concept card — Algorithm / Data Structure / Paradigm -->
-                <div class="card" id="classification-card" style="display:none;">
-                    <div class="card-title" style="color:#a78bfa;opacity:1;margin-bottom:10px;">🧠 What This Code Uses</div>
-
-                    <!-- Row 1: Algorithm Type -->
-                    <div id="algo-row" style="display:none; margin-bottom:10px;">
-                        <div class="pill-group-label">⚡ Algorithm Type</div>
-                        <div id="algo-pills"></div>
-                    </div>
-
-                    <!-- Row 2: Data Structures -->
-                    <div id="ds-row" style="display:none; margin-bottom:10px;">
-                        <div class="pill-group-label">📦 Data Structures</div>
-                        <div id="ds-pills"></div>
-                    </div>
-
-                    <!-- Row 3: Paradigm -->
-                    <div id="paradigm-row" style="display:none;">
-                        <div class="pill-group-label">🧩 Paradigm</div>
-                        <div id="paradigm-pills"></div>
-                    </div>
-                </div>
-                <!-- END H8 -->
-                <!-- END H3 NEW -->
-
-                <!-- Complexity card -->
-                <div class="card" id="complexity-card" style="display:none;">
-                    <div class="card-title" style="color:#4ecdc4;">⚡ Complexity Analysis</div>
-                    <div class="complexity-row">
-                        <div class="complexity-badge">
-                            <div class="complexity-notation" id="time-notation">—</div>
-                            <div class="complexity-label">Time</div>
-                            <div class="complexity-reason" id="time-reason"></div>
-                        </div>
-                        <div class="complexity-badge">
-                            <div class="complexity-notation" id="space-notation">—</div>
-                            <div class="complexity-label">Space</div>
-                            <div class="complexity-reason" id="space-reason"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Auto test results -->
-                <div class="card" id="autotest-card" style="display:none;">
-                    <div class="card-title amber">🧪 Auto Test Results</div>
-                    <div id="autotest-content" style="margin-top:8px;"></div>
-                </div>
-
-                <!-- Resource recommendations -->
-                <div class="card" id="resources-card" style="display:none;">
-                    <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
-                    <div id="resources-content"></div>
-                </div>
-
-                <!-- Friendly error messages -->
-                <div class="error-card" id="error-card" style="display:none;">
-                    <div class="card-title red">⚠️ Error found</div>
-                    <div class="card-body" id="error-text"></div>
-                </div>
-
-                <!-- FR19: Line explain panel -->
-                <div class="line-explain-card" id="line-explain-card" style="display:none;">
-                    <div class="card-title" style="color:#4ecdc4;">🔍 Line Explanation</div>
-                    <div class="line-explain-code" id="line-explain-code"></div>
-                    <div class="loading" id="line-explain-loading" style="display:none;padding:10px 0;">
-                        <div class="spinner"></div>
-                    </div>
-                    <div class="line-explain-text" id="line-explain-text"></div>
-                    <button class="btn" style="background:transparent;border:1px solid var(--vscode-panel-border);color:var(--vscode-foreground);margin-top:8px;font-size:10px;" onclick="closeLineExplain()">✕ Close</button>
-                </div>
-
-            </div>
+      <!-- Line explain -->
+      <div class="line-explain-card" id="line-explain-card" style="display:none;">
+        <div class="card-title" style="color:#4ecdc4;">🔍 Line Explanation</div>
+        <div class="line-explain-code" id="line-explain-code"></div>
+        <div class="loading" id="line-explain-loading" style="display:none;padding:8px 0;">
+          <div class="spinner"></div>
         </div>
+        <div class="line-explain-text" id="line-explain-text"></div>
+        <button class="btn" style="background:transparent;border:1px solid var(--vscode-panel-border);color:var(--vscode-foreground);font-size:10px;margin-top:8px;" onclick="closeLineExplain()">✕ Close</button>
+      </div>
 
-        <!-- HINT TAB -->
-        <div class="tab-panel" id="panel-hint">
-            <div class="empty-state" id="hint-empty">
-                <div class="empty-icon">🔍</div>
-                <div>No issues detected yet.<br>Write some code and I'll watch for mistakes!</div>
-            </div>
-            <div id="hint-content" style="display:none;">
-                <div class="hint-card">
-                    <div class="card-title amber">💡 Hint</div>
-                    <div class="card-body" id="hint-text"></div>
-                </div>
-                <button class="btn btn-primary" onclick="checkFix()">✅ Check My Fix</button>
-            </div>
-            <div class="success-state" id="hint-success" style="display:none;">
-                ✅ Great job! Issue resolved!
-            </div>
+      <!-- Explanation card -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div class="card-title blue" style="margin-bottom:0;">📖 What your code does</div>
+          <span id="level-badge" style="display:none;"></span>
         </div>
+        <div class="card-body" id="explanation-text"></div>
+      </div>
 
-        <!-- FLOW TAB -->
-        <div class="tab-panel" id="panel-flow">
-
-            <div style="display:flex;gap:8px;margin-bottom:12px;">
-                <button class="show-flow-btn" style="flex:1;" onclick="requestFlow()">
-                    🔀 Generate Flow Diagram
-                </button>
-                <button class="show-flow-btn" style="flex:1;" onclick="requestTrace()">
-                    👣 Step Through Code
-                </button>
-            </div>
-
-            <div class="loading" id="flow-loading" style="display:none;">
-                <div class="spinner"></div>
-                <div class="loading-text" id="flow-loading-text">Generating...</div>
-            </div>
-
-            <div id="mermaid-container" style="display:none;"></div>
-
-            <div id="stepper-container" style="display:none;">
-
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                    <div style="font-size:11px;color:var(--vscode-descriptionForeground);" id="step-counter">Step 1 of 1</div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="btn btn-primary" style="width:auto;padding:4px 12px;margin:0;" onclick="prevStep()">← Prev</button>
-                        <button class="btn btn-primary" style="width:auto;padding:4px 12px;margin:0;" onclick="nextStep()">Next →</button>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-bottom:8px;">
-                    <div class="card-title blue">📍 Current Line</div>
-                    <div style="font-family:monospace;font-size:13px;color:var(--vscode-foreground);margin-top:4px;" id="step-line">—</div>
-                </div>
-
-                <div class="card" style="margin-bottom:8px;">
-                    <div class="card-title green">📦 Variables</div>
-                    <div id="step-vars" style="margin-top:6px;">
-                        <div style="font-size:12px;color:var(--vscode-descriptionForeground);">No variables yet</div>
-                    </div>
-                </div>
-
-                <div class="card" id="output-card" style="display:none;">
-                    <div class="card-title amber">🖨️ Output</div>
-                    <div style="font-family:monospace;font-size:11px;color:var(--vscode-foreground);margin-top:4px;white-space:pre-wrap;" id="step-output"></div>
-                </div>
-
-            </div>
+      <!-- Complexity -->
+      <div class="card" id="complexity-card" style="display:none;">
+        <div class="card-title" style="color:#4ecdc4;margin-bottom:6px;">⚡ Complexity Analysis</div>
+        <div class="complexity-row">
+          <div class="complexity-badge">
+            <div class="complexity-notation" id="time-notation">—</div>
+            <div class="complexity-label">Time</div>
+            <div class="complexity-reason" id="time-reason"></div>
+          </div>
+          <div class="complexity-badge">
+            <div class="complexity-notation" id="space-notation">—</div>
+            <div class="complexity-label">Space</div>
+            <div class="complexity-reason" id="space-reason"></div>
+          </div>
         </div>
+      </div>
 
-        <!-- PROGRESS TAB -->
-        <div class="tab-panel" id="panel-progress">
-            <div class="loading" id="progress-loading">
-                <div class="spinner"></div>
-                <div class="loading-text">Loading your progress...</div>
-            </div>
-            <div id="progress-content" style="display:none;">
+      <!-- Error card -->
+      <div class="error-card" id="error-card" style="display:none;">
+        <div class="card-title red">⚠️ Error found</div>
+        <div class="card-body" id="error-text"></div>
+      </div>
 
-                <!-- Score + Streak row -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-                    <div class="card" style="text-align:center;padding:16px 10px;">
-                        <div style="font-size:32px;font-weight:700;color:#ffd93d;line-height:1;" id="big-score">0</div>
-                        <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;">Total Points</div>
-                        <div id="score-level-label" style="font-size:10px;margin-top:6px;padding:2px 8px;border-radius:10px;display:inline-block;"></div>
-                    </div>
-                    <div class="card" style="text-align:center;padding:16px 10px;">
-                        <div style="font-size:32px;font-weight:700;color:#ff6b6b;line-height:1;" id="big-streak">0</div>
-                        <div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;">Day Streak 🔥</div>
-                        <div id="streak-label" style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:6px;"></div>
-                    </div>
-                </div>
-
-                <!-- Last action -->
-                <div id="last-action-card" style="display:none;padding:8px 12px;background:rgba(107,203,119,0.1);border:1px solid rgba(107,203,119,0.25);border-radius:6px;font-size:12px;color:#6bcb77;margin-bottom:12px;"></div>
-
-                <!-- Badges -->
-                <div class="card" style="margin-bottom:12px;">
-                    <div class="card-title" style="color:#ffd93d;margin-bottom:10px;">🏆 Badges</div>
-                    <div id="badges-grid"></div>
-                </div>
-
-                <!-- Stats row -->
-                <div class="card" style="margin-bottom:12px;">
-                    <div class="card-title amber" style="margin-bottom:10px;">📊 Session Stats</div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                        <div style="text-align:center;padding:8px;background:rgba(255,107,107,0.08);border-radius:6px;border:1px solid rgba(255,107,107,0.15);">
-                            <div style="font-size:20px;font-weight:600;color:#ff6b6b;" id="stat-detected">0</div>
-                            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em;">Detected</div>
-                        </div>
-                        <div style="text-align:center;padding:8px;background:rgba(107,203,119,0.08);border-radius:6px;border:1px solid rgba(107,203,119,0.15);">
-                            <div style="font-size:20px;font-weight:600;color:#6bcb77;" id="stat-fixed">0</div>
-                            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em;">Fixed</div>
-                        </div>
-                        <div style="text-align:center;padding:8px;background:rgba(78,205,196,0.08);border-radius:6px;border:1px solid rgba(78,205,196,0.15);">
-                            <div style="font-size:20px;font-weight:600;color:#4ecdc4;" id="stat-concepts">0</div>
-                            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em;">DSA Mastered</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- DSA Concepts -->
-                <div class="card" style="margin-bottom:12px;" id="dsa-card">
-                    <div class="card-title green" style="margin-bottom:10px;">🧠 DSA Concepts Practiced</div>
-                    <div id="progress-concepts"></div>
-                </div>
-
-                <!-- Recent score history -->
-                <div class="card" style="margin-bottom:12px;">
-                    <div class="card-title blue" style="margin-bottom:10px;">📈 Recent Activity</div>
-                    <div id="score-history"></div>
-                </div>
-
-                <!-- Session timer -->
-                <div class="card" style="margin-bottom:12px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;">
-                        <div>
-                            <div class="card-title blue">⏱️ Session Timer</div>
-                            <div style="font-size:22px;font-weight:600;font-family:monospace;color:var(--vscode-foreground);margin-top:4px;" id="session-timer">00:00</div>
-                        </div>
-                        <div style="font-size:24px;opacity:0.3;">⏱</div>
-                    </div>
-                </div>
-
-                <button class="btn btn-primary" onclick="loadProgress()" style="margin-top:4px;">🔄 Refresh Stats</button>
-            </div>
+      <!-- What this code uses (grouped concepts) -->
+      <div class="card" id="uses-card" style="display:none;">
+        <div class="card-title green">🧠 What this code uses</div>
+        <div id="algo-group" style="display:none;">
+          <div class="pill-group-label">Algorithm / Technique</div>
+          <div class="concepts" id="algo-pills"></div>
         </div>
+        <div id="paradigm-group" style="display:none;">
+          <div class="pill-group-label">Paradigm</div>
+          <div class="concepts" id="paradigm-pills"></div>
+        </div>
+      </div>
 
-    </div><!-- end .content -->
+      <!-- Resources -->
+      <div class="card" id="resources-card" style="display:none;">
+        <div class="card-title" style="color:#ffd93d;">📚 Recommended Resources</div>
+        <div id="resources-content"></div>
+      </div>
+
+      <!-- Auto tests -->
+      <div class="card" id="autotest-card" style="display:none;">
+        <div class="card-title amber">🧪 Auto Test Results</div>
+        <div id="autotest-content" style="margin-top:8px;"></div>
+      </div>
+
+    </div>
+
+    <!-- Empty state — shown before any code is written -->
+    <div class="empty-state" id="explain-empty" style="display:none;">
+      <div class="empty-icon">💡</div>
+      <div class="empty-title">Ready to help!</div>
+      <div class="empty-desc">Open a Python or C++ file and start coding.<br>LiveCode Mentor will explain your code in real time.</div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════ HINT TAB ════════════════════ -->
+  <div class="tab-panel" id="panel-hint">
+    <div class="empty-state" id="hint-empty">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">No issues detected</div>
+      <div class="empty-desc">Write some code and LiveCode Mentor<br>will watch for common mistakes!</div>
+    </div>
+    <div id="hint-content" style="display:none;">
+      <div class="hint-card">
+        <div class="card-title amber">💡 Hint</div>
+        <div class="card-body" id="hint-text"></div>
+      </div>
+      <button class="btn btn-primary" onclick="checkFix()">✅ Check My Fix</button>
+    </div>
+    <div class="success-state" id="hint-success" style="display:none;">
+      ✅ Great job! Issue resolved! 🎉
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FLOW TAB ════════════════════ -->
+  <div class="tab-panel" id="panel-flow">
+
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button class="show-flow-btn" style="flex:1;" onclick="requestFlow()">🔀 Generate Flow</button>
+      <button class="show-flow-btn" style="flex:1;" onclick="requestTrace()">👣 Step Through</button>
+    </div>
+
+    <div class="loading" id="flow-loading" style="display:none;">
+      <div class="spinner"></div>
+      <div class="loading-text" id="flow-loading-text">Generating...</div>
+    </div>
+
+    <div id="mermaid-container" style="display:none;"></div>
+
+    <!-- Stepper -->
+    <div id="stepper-container" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--vscode-descriptionForeground);" id="step-counter">Step 1 of 1</div>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-primary" style="width:auto;padding:4px 12px;margin:0;" onclick="prevStep()">← Prev</button>
+          <button class="btn btn-primary" style="width:auto;padding:4px 12px;margin:0;" onclick="nextStep()">Next →</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:7px;">
+        <div class="card-title blue">📍 Current Line</div>
+        <div style="font-family:monospace;font-size:12px;color:var(--vscode-foreground);margin-top:4px;" id="step-line">—</div>
+      </div>
+      <div class="card" style="margin-bottom:7px;">
+        <div class="card-title green">📦 Variables</div>
+        <div id="step-vars" style="margin-top:5px;font-size:12px;color:var(--vscode-descriptionForeground);">No variables yet</div>
+      </div>
+      <div class="card" id="output-card" style="display:none;">
+        <div class="card-title amber">🖨️ Output</div>
+        <div style="font-family:monospace;font-size:11px;white-space:pre-wrap;margin-top:4px;" id="step-output"></div>
+      </div>
+    </div>
+
+    <!-- Flow empty state -->
+    <div class="empty-state" id="flow-empty">
+      <div class="empty-icon">🔀</div>
+      <div class="empty-title">Visualize your code</div>
+      <div class="empty-desc">Click "Generate Flow" for a flowchart,<br>or "Step Through" to walk execution<br>step by step with variable values.</div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════ PROGRESS TAB ════════════════════ -->
+  <div class="tab-panel" id="panel-progress">
+    <div class="loading" id="progress-loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading your progress...</div>
+    </div>
+    <div id="progress-content" style="display:none;">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px;">
+        <div class="card" style="text-align:center;padding:14px 10px;">
+          <div style="font-size:30px;font-weight:700;color:#ffd93d;line-height:1;" id="big-score">0</div>
+          <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:3px;text-transform:uppercase;letter-spacing:0.06em;">Points</div>
+          <div id="score-level-label" style="font-size:9px;margin-top:5px;padding:2px 7px;border-radius:10px;display:inline-block;"></div>
+        </div>
+        <div class="card" style="text-align:center;padding:14px 10px;">
+          <div style="font-size:30px;font-weight:700;color:#ff6b6b;line-height:1;" id="big-streak">0</div>
+          <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:3px;text-transform:uppercase;letter-spacing:0.06em;">Day Streak 🔥</div>
+          <div id="streak-label" style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:5px;"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:#ffd93d;margin-bottom:8px;">🏆 Badges</div>
+        <div id="badges-grid"><div style="font-size:11px;color:var(--vscode-descriptionForeground);">Loading...</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title amber" style="margin-bottom:8px;">📊 Stats</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;">
+          <div style="text-align:center;padding:8px 4px;background:rgba(255,107,107,0.08);border-radius:5px;border:1px solid rgba(255,107,107,0.15);">
+            <div style="font-size:18px;font-weight:600;color:#ff6b6b;" id="stat-detected">0</div>
+            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;">Detected</div>
+          </div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(107,203,119,0.08);border-radius:5px;border:1px solid rgba(107,203,119,0.15);">
+            <div style="font-size:18px;font-weight:600;color:#6bcb77;" id="stat-fixed">0</div>
+            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;">Fixed</div>
+          </div>
+          <div style="text-align:center;padding:8px 4px;background:rgba(78,205,196,0.08);border-radius:5px;border:1px solid rgba(78,205,196,0.15);">
+            <div style="font-size:18px;font-weight:600;color:#4ecdc4;" id="stat-concepts">0</div>
+            <div style="font-size:9px;color:var(--vscode-descriptionForeground);margin-top:2px;text-transform:uppercase;">DSA</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="dsa-card" style="margin-bottom:10px;">
+        <div class="card-title green" style="margin-bottom:8px;">🧠 DSA Concepts</div>
+        <div id="progress-concepts"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title blue" style="margin-bottom:8px;">📈 Recent Activity</div>
+        <div id="score-history"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div class="card-title blue">⏱️ Session</div>
+            <div style="font-size:20px;font-weight:600;font-family:monospace;margin-top:3px;" id="session-timer">00:00</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="loadProgress()">🔄 Refresh Stats</button>
+    </div>
+  </div>
+
+</div>
 
     <script>
         const vscode = acquireVsCodeApi();
+        let currentMode = 'learning';
+        let sessionStart = Date.now();
+        let timeoutTimer = null;
+        let traceSteps = [];
+        let currentStep = 0;
 
-        // ── Tab switching ─────────────────────────────────────────────────────
+        // ── Tab switching ────────────────────────────────────────────────────────────
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            document.querySelector('[onclick="switchTab(\'' + tabName + '\')"]').classList.add('active');
-            document.getElementById('panel-' + tabName).classList.add('active');
-        }
-
-        // Auto-load progress when Progress tab is clicked
-        const originalSwitchTab = switchTab;
-        window.switchTab = function(tabName) {
-            originalSwitchTab(tabName);
+            const tabEl = document.querySelector('[onclick="switchTab(\'' + tabName + '\')"]');
+            if (tabEl) { tabEl.classList.add('active'); }
+            const panel = document.getElementById('panel-' + tabName);
+            if (panel) { panel.classList.add('active'); }
             if (tabName === 'progress') { loadProgress(); }
-        };
-
-        // ── Flow / Trace ──────────────────────────────────────────────────────
-        function requestFlow() {
-            document.getElementById('mermaid-container').style.display = 'none';
-            document.getElementById('mermaid-container').innerHTML = '';
-            document.getElementById('stepper-container').style.display = 'none';
-            document.getElementById('flow-loading').style.display = 'flex';
-            document.getElementById('flow-loading-text').textContent = 'Generating flow diagram...';
-            vscode.postMessage({ type: 'requestFlow' });
         }
 
-        function checkFix() {
-            vscode.postMessage({ type: 'checkFix' });
+        // ── Status dot ───────────────────────────────────────────────────────────────
+        function setStatus(state) {
+            const dot = document.getElementById('statusDot');
+            if (!dot) { return; }
+            dot.className = 'status-dot';
+            if (state === 'offline')  { dot.classList.add('offline'); }
+            if (state === 'thinking') { dot.classList.add('thinking'); }
         }
 
-        // ── Loading state ─────────────────────────────────────────────────────
+        // ── Timeout handler ──────────────────────────────────────────────────────────
+        function startTimeout() {
+            clearTimeout(timeoutTimer);
+            setStatus('thinking');
+            timeoutTimer = setTimeout(() => {
+                const banner = document.getElementById('timeout-banner');
+                if (banner) { banner.style.display = 'block'; }
+            }, 8000);
+        }
+
+        function clearTimeoutState() {
+            clearTimeout(timeoutTimer);
+            setStatus('online');
+            const banner = document.getElementById('timeout-banner');
+            if (banner) { banner.style.display = 'none'; }
+        }
+
+        // ── Skeleton / loading ───────────────────────────────────────────────────────
         function showLoading() {
-            document.getElementById('explanation-loading').style.display = 'flex';
-            document.getElementById('explanation-content').style.display = 'none';
+            document.getElementById('explanation-skeleton').style.display = 'block';
+            document.getElementById('explanation-content').style.display  = 'none';
+            document.getElementById('explain-empty').style.display        = 'none';
+            document.getElementById('timeout-banner').style.display       = 'none';
+            startTimeout();
         }
 
-        // ── H3 NEW — renderClassificationPills ───────────────────────────────
-        // ── H8: renderClassificationPills — 3 groups ─────────────────────────
-        function renderClassificationPills(data) {
-            const card          = document.getElementById('classification-card');
-            const algoRow       = document.getElementById('algo-row');
-            const dsRow         = document.getElementById('ds-row');
-            const paradigmRow   = document.getElementById('paradigm-row');
-            const algoPills     = document.getElementById('algo-pills');
-            const dsPills       = document.getElementById('ds-pills');
-            const paradigmPills = document.getElementById('paradigm-pills');
-
-            const algorithms      = data.algorithms      || [];
-            const data_structures = data.data_structures || [];
-            const paradigms       = data.paradigms        || [];
-
-            // Hide entire card if nothing detected
-            if (!algorithms.length && !data_structures.length && !paradigms.length) {
-                card.style.display = 'none';
-                return;
+        // ── Score display ────────────────────────────────────────────────────────────
+        function updateScoreDisplay(score) {
+            const el = document.getElementById('score-display');
+            if (!el) { return; }
+            const prev = parseInt(el.textContent.replace(/\D/g, '')) || 0;
+            if (score !== prev) {
+                el.classList.remove('score-pop');
+                void el.offsetWidth; // reflow
+                el.classList.add('score-pop');
+                setTimeout(() => el.classList.remove('score-pop'), 400);
             }
-
-            // ── Pill factory ──────────────────────────────────────────────────
-            function makePill(label, bg, color, border) {
-                const span = document.createElement('span');
-                span.className = 'classification-pill';
-                span.textContent = label;
-                span.style.background = bg;
-                span.style.color      = color;
-                span.style.border     = '1px solid ' + border;
-                return span;
-            }
-
-            // ── Algorithm Type pills — purple ─────────────────────────────────
-            algoPills.innerHTML = '';
-            if (algorithms.length) {
-                algorithms.forEach(a =>
-                    algoPills.appendChild(makePill(a,
-                        'rgba(124,111,247,0.13)', '#a78bfa', 'rgba(124,111,247,0.35)'))
-                );
-                algoRow.style.display = 'block';
-            } else {
-                algoRow.style.display = 'none';
-            }
-
-            // ── Data Structure pills — amber ──────────────────────────────────
-            dsPills.innerHTML = '';
-            if (data_structures.length) {
-                data_structures.forEach(ds =>
-                    dsPills.appendChild(makePill(ds,
-                        'rgba(255,183,77,0.12)', '#FFB74D', 'rgba(255,183,77,0.35)'))
-                );
-                dsRow.style.display = 'block';
-            } else {
-                dsRow.style.display = 'none';
-            }
-
-            // ── Paradigm pills — teal ─────────────────────────────────────────
-            paradigmPills.innerHTML = '';
-            if (paradigms.length) {
-                paradigms.forEach(p =>
-                    paradigmPills.appendChild(makePill(p,
-                        'rgba(78,205,196,0.12)', '#4ecdc4', 'rgba(78,205,196,0.35)'))
-                );
-                paradigmRow.style.display = 'block';
-            } else {
-                paradigmRow.style.display = 'none';
-            }
-
-            card.style.display = 'block';
+            el.textContent = '⭐ ' + score + ' pts';
+            const big = document.getElementById('big-score');
+            if (big) { animateNumber(big, parseInt(big.textContent) || 0, score); }
         }
-        // ── END H8 ───────────────────────────────────────────────────────────
-        // ── END H3 NEW ───────────────────────────────────────────────────────
 
-        // ── showExplanation ───────────────────────────────────────────────────
+        function animateNumber(el, from, to) {
+            const duration = 600;
+            const start = performance.now();
+            function step(now) {
+                const t = Math.min((now - start) / duration, 1);
+                el.textContent = Math.round(from + (to - from) * t);
+                if (t < 1) { requestAnimationFrame(step); }
+            }
+            requestAnimationFrame(step);
+        }
+
+        // ── Toast notifications ──────────────────────────────────────────────────────
+        function showToast(message, type) {
+            document.querySelectorAll('.score-toast').forEach(t => t.remove());
+            const toast = document.createElement('div');
+            toast.className = 'score-toast toast-' + type;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { if (toast.parentNode) { toast.remove(); } }, 2900);
+        }
+
+        // ── Mode toggle ──────────────────────────────────────────────────────────────
+        function handleModeToggle(isDevMode) {
+            currentMode = isDevMode ? 'developer' : 'learning';
+            vscode.postMessage({ type: 'setMode', mode: currentMode });
+
+            if (isDevMode) {
+                document.body.classList.add('dev-mode');
+                document.getElementById('mode-learning-label').style.color = 'var(--vscode-descriptionForeground)';
+                document.getElementById('mode-dev-label').style.color = '#7c6ff7';
+                document.getElementById('uses-card').style.display       = 'none';
+                document.getElementById('resources-card').style.display  = 'none';
+                document.getElementById('autotest-card').style.display   = 'none';
+                document.getElementById('complexity-card').style.display = 'block';
+            } else {
+                document.body.classList.remove('dev-mode');
+                document.getElementById('mode-learning-label').style.color = '#6bcb77';
+                document.getElementById('mode-dev-label').style.color = 'var(--vscode-descriptionForeground)';
+                document.getElementById('explanation-skeleton').style.display = 'block';
+                document.getElementById('explanation-content').style.display  = 'none';
+                vscode.postMessage({ type: 'reanalyze' });
+            }
+        }
+
+        // ── Show explanation ─────────────────────────────────────────────────────────
         function showExplanation(data) {
-            document.getElementById('explanation-loading').style.display = 'none';
-            document.getElementById('explanation-content').style.display = 'block';
-            document.getElementById('explanation-text').textContent =
-                data.explanation || 'Analysing...';
+            clearTimeoutState();
+            document.getElementById('explanation-skeleton').style.display = 'none';
+            document.getElementById('explain-empty').style.display        = 'none';
+            document.getElementById('explanation-content').style.display  = 'block';
+
+            document.getElementById('explanation-text').textContent = data.explanation || 'Analysing...';
 
             // Level badge
             const badge = document.getElementById('level-badge');
-            if (data.level) {
-                badge.style.display = 'inline-block';
-                if (data.level === 'developer') {
-                    badge.textContent = '⚡ Dev Mode';
-                    badge.style.cssText += ';background:rgba(124,111,247,0.15);color:#7c6ff7;border:1px solid rgba(124,111,247,0.3);';
-                } else if (data.level === 'beginner') {
-                    badge.textContent = '🌱 Beginner';
-                    badge.style.cssText += ';background:rgba(107,203,119,0.15);color:#6bcb77;border:1px solid rgba(107,203,119,0.3);';
-                } else if (data.level === 'intermediate') {
-                    badge.textContent = '⚡ Intermediate';
-                    badge.style.cssText += ';background:rgba(255,217,61,0.15);color:#ffd93d;border:1px solid rgba(255,217,61,0.3);';
-                } else {
-                    badge.textContent = '🚀 Expert';
-                    badge.style.cssText += ';background:rgba(124,111,247,0.15);color:#7c6ff7;border:1px solid rgba(124,111,247,0.3);';
-                }
-            }
-
-            const isDevMode = currentMode === 'developer';
-
-            // H3 NEW — render classification pills (hidden in dev mode via CSS)
-            if (!isDevMode) {
-                renderClassificationPills(data);
+            const levelMap = {
+                beginner:    ['🌱 Beginner',    'rgba(107,203,119,0.15)', '#6bcb77', 'rgba(107,203,119,0.3)'],
+                intermediate:['⚡ Intermediate', 'rgba(255,217,61,0.15)',  '#ffd93d', 'rgba(255,217,61,0.3)'],
+                expert:      ['🚀 Expert',       'rgba(124,111,247,0.15)', '#9d95f5', 'rgba(124,111,247,0.3)'],
+                developer:   ['⚡ Dev Mode',     'rgba(124,111,247,0.15)', '#9d95f5', 'rgba(124,111,247,0.3)'],
+            };
+            if (data.level && levelMap[data.level]) {
+                const [text, bg, color, border] = levelMap[data.level];
+                badge.style.display    = 'inline-block';
+                badge.textContent      = text;
+                badge.style.background = bg;
+                badge.style.color      = color;
+                badge.style.border     = '1px solid ' + border;
             } else {
-                document.getElementById('classification-card').style.display = 'none';
+                badge.style.display = 'none';
             }
 
-            // Error card
-            if (data.friendly_error) {
-                document.getElementById('error-card').style.display = 'block';
-                document.getElementById('error-text').textContent = data.friendly_error;
-            } else {
-                document.getElementById('error-card').style.display = 'none';
-            }
-
-            // Complexity — show in both modes
+            // Complexity
             if (data.time_complexity && data.space_complexity) {
                 document.getElementById('complexity-card').style.display = 'block';
                 document.getElementById('time-notation').textContent  = data.time_complexity.notation  || '—';
@@ -1134,482 +916,147 @@
                 document.getElementById('complexity-card').style.display = 'none';
             }
 
-            // Auto test + resources — hide in dev mode
+            // Error
+            if (data.friendly_error) {
+                document.getElementById('error-card').style.display = 'block';
+                document.getElementById('error-text').textContent   = data.friendly_error;
+            } else {
+                document.getElementById('error-card').style.display = 'none';
+            }
+
+            // Grouped concept pills (algorithms + paradigms)
+            const isDevMode = currentMode === 'developer';
+            const usesCard = document.getElementById('uses-card');
+
+            if (!isDevMode && (data.algorithms?.length > 0 || data.paradigms?.length > 0)) {
+                usesCard.style.display = 'block';
+
+                const algoGroup = document.getElementById('algo-group');
+                if (data.algorithms && data.algorithms.length > 0) {
+                    algoGroup.style.display = 'block';
+                    document.getElementById('algo-pills').innerHTML =
+                        data.algorithms.map(a => '<span class="concept-pill algo-pill">' + a + '</span>').join('');
+                } else {
+                    algoGroup.style.display = 'none';
+                }
+
+                const paraGroup = document.getElementById('paradigm-group');
+                if (data.paradigms && data.paradigms.length > 0) {
+                    paraGroup.style.display = 'block';
+                    document.getElementById('paradigm-pills').innerHTML =
+                        data.paradigms.map(p => '<span class="concept-pill paradigm-pill">' + p + '</span>').join('');
+                } else {
+                    paraGroup.style.display = 'none';
+                }
+            } else {
+                usesCard.style.display = 'none';
+            }
+
+            // Hide resource + test cards in dev mode
             if (isDevMode) {
                 document.getElementById('resources-card').style.display = 'none';
                 document.getElementById('autotest-card').style.display  = 'none';
             }
+
+            // Smooth scroll to top
+            document.querySelector('.content').scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // ── showHint ──────────────────────────────────────────────────────────
+        // ── Hint tab ─────────────────────────────────────────────────────────────────
         function showHint(data) {
-            const hintEmpty   = document.getElementById('hint-empty');
-            const hintContent = document.getElementById('hint-content');
-            const hintSuccess = document.getElementById('hint-success');
-
-            if (!hintEmpty || !hintContent || !hintSuccess) { return; }
+            const empty   = document.getElementById('hint-empty');
+            const content = document.getElementById('hint-content');
+            const success = document.getElementById('hint-success');
+            if (!empty || !content || !success) { return; }
 
             if (data && data.has_mistake && data.hint) {
-                hintEmpty.style.display   = 'none';
-                hintSuccess.style.display = 'none';
-                hintContent.style.display = 'block';
+                empty.style.display   = 'none';
+                success.style.display = 'none';
+                content.style.display = 'block';
                 document.getElementById('hint-text').textContent = data.hint;
             } else {
-                hintContent.style.display = 'none';
-                hintSuccess.style.display = 'none';
-                hintEmpty.style.display   = 'block';
+                content.style.display = 'none';
+                success.style.display = 'none';
+                empty.style.display   = 'block';
             }
         }
 
-        // ── showFlow ──────────────────────────────────────────────────────────
-        function showFlow(mermaidCode) {
-            document.getElementById('flow-loading').style.display   = 'none';
+        function checkFix() { vscode.postMessage({ type: 'checkFix' }); }
+
+        // ── Flow + trace ──────────────────────────────────────────────────────────────
+        function requestFlow() {
+            document.getElementById('flow-empty').style.display      = 'none';
+            document.getElementById('mermaid-container').style.display = 'none';
             document.getElementById('stepper-container').style.display = 'none';
-
-            const container = document.getElementById('mermaid-container');
-            container.style.display = 'block';
-
-            if (!mermaidCode || mermaidCode.trim() === '') {
-                container.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">Could not generate flow diagram. Try again.</div>';
-                return;
-            }
-
-            container.innerHTML =
-                '<div style="font-size:11px;opacity:0.6;margin-bottom:8px;">📊 Mermaid Flow Diagram</div>' +
-                '<pre style="font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--vscode-foreground);">' +
-                escapeHtml(mermaidCode) + '</pre>' +
-                '<div style="font-size:10px;opacity:0.5;margin-top:8px;">💡 Copy into mermaid.live to see the visual diagram</div>';
+            document.getElementById('flow-loading').style.display    = 'flex';
+            document.getElementById('flow-loading-text').textContent = 'Generating flow diagram...';
+            vscode.postMessage({ type: 'requestFlow' });
         }
-
-        function escapeHtml(text) {
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-        }
-
-        // ── Progress ──────────────────────────────────────────────────────────
-        // ── PROGRESS TAB ──────────────────────────────────────────────────────────────
-        //let sessionStart = Date.now();
-
-        setInterval(() => {
-            const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
-            const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
-            const secs = String(elapsed % 60).padStart(2, '0');
-            const el = document.getElementById('session-timer');
-            if (el) { el.textContent = mins + ':' + secs; }
-        }, 1000);
-
-        async function loadProgress() {
-            // Reset session timer
-            sessionStart = Date.now();
-
-            document.getElementById('progress-loading').style.display = 'flex';
-            document.getElementById('progress-content').style.display = 'none';
-
-            try {
-                const [statsRes, scoreRes] = await Promise.all([
-                    fetch('http://localhost:8000/stats'),
-                    fetch('http://localhost:8000/score')
-                ]);
-
-                if (!statsRes.ok || !scoreRes.ok) { throw new Error('Server error'); }
-
-                const stats = await statsRes.json();
-                const scoreData = await scoreRes.json();
-
-                document.getElementById('progress-loading').style.display = 'none';
-                document.getElementById('progress-content').style.display = 'block';
-
-                renderScoreSection(scoreData);
-                renderBadgesGrid(scoreData.badges);
-                renderStatsRow(stats);
-                renderConceptBars(stats.top_concepts);
-                renderScoreHistory(scoreData.history);
-
-            } catch (e) {
-                document.getElementById('progress-loading').style.display = 'none';
-                document.getElementById('progress-content').style.display = 'block';
-                document.getElementById('badges-grid').innerHTML =
-                    '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">Could not load stats. Is the backend running?</div>';
-            }
-        }
-
-        function renderScoreSection(scoreData) {
-            const score  = scoreData.score  || 0;
-            const streak = scoreData.streak || 0;
-
-            // Score display
-            document.getElementById('big-score').textContent  = score;
-            document.getElementById('big-streak').textContent = streak;
-            updateScoreDisplay(score);
-
-            // Score level label
-            const levelEl = document.getElementById('score-level-label');
-            if (score >= 100) {
-                levelEl.textContent = '🏆 Champion';
-                levelEl.style.background = 'rgba(255,217,61,0.2)';
-                levelEl.style.color = '#ffd93d';
-            } else if (score >= 50) {
-                levelEl.textContent = '⭐ Advanced';
-                levelEl.style.background = 'rgba(124,111,247,0.15)';
-                levelEl.style.color = '#7c6ff7';
-            } else if (score >= 20) {
-                levelEl.textContent = '🌱 Learning';
-                levelEl.style.background = 'rgba(107,203,119,0.15)';
-                levelEl.style.color = '#6bcb77';
-            } else {
-                levelEl.textContent = '👶 Just Started';
-                levelEl.style.background = 'rgba(170,170,170,0.1)';
-                levelEl.style.color = 'var(--vscode-descriptionForeground)';
-            }
-
-            // Streak label
-            const streakEl = document.getElementById('streak-label');
-            if (streak === 0) {
-                streakEl.textContent = 'Start coding to build a streak!';
-            } else if (streak === 1) {
-                streakEl.textContent = 'Keep it up tomorrow!';
-            } else {
-                streakEl.textContent = streak + ' days in a row 💪';
-            }
-        }
-
-        function renderBadgesGrid(badges) {
-            const grid = document.getElementById('badges-grid');
-            if (!badges || badges.length === 0) {
-                grid.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No badges defined yet.</div>';
-                return;
-            }
-
-            const earned = badges.filter(b => b.earned);
-            const locked = badges.filter(b => !b.earned);
-
-            let html = '<div class="badge-grid">';
-
-            // Earned first
-            earned.forEach(b => {
-                html += `
-                <div class="badge-card earned" title="${b.desc}">
-                    <div class="badge-icon">${b.icon}</div>
-                    <div class="badge-info">
-                        <div class="badge-name">${b.name}</div>
-                        <div class="badge-desc">${b.desc}</div>
-                    </div>
-                    <div class="badge-check">✓</div>
-                </div>`;
-            });
-
-            // Locked after
-            locked.forEach(b => {
-                html += `
-                <div class="badge-card locked" title="Locked: ${b.desc}">
-                    <div class="badge-icon">${b.icon}</div>
-                    <div class="badge-info">
-                        <div class="badge-name">${b.name}</div>
-                        <div class="badge-desc">${b.desc}</div>
-                    </div>
-                    <div class="badge-check" style="color:var(--vscode-descriptionForeground);">🔒</div>
-                </div>`;
-            });
-
-            html += '</div>';
-
-            // Summary line
-            html += `<div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-top:8px;text-align:center;">
-                ${earned.length} / ${badges.length} badges earned
-            </div>`;
-
-            grid.innerHTML = html;
-        }
-
-        function renderStatsRow(stats) {
-            // IDs that exist in the current progress tab HTML
-            const safeSet = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) { el.textContent = val; }
-            };
-            safeSet('stat-detected', stats.total_mistakes || 0);
-            safeSet('stat-fixed',    stats.fixed_mistakes || 0);
-            safeSet('stat-concepts', stats.unique_major_concepts || 0);
-        }
-
-        function renderConceptBars(concepts) {
-            const el = document.getElementById('progress-concepts');
-            if (!concepts || concepts.length === 0) {
-                el.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No DSA concepts practiced yet. Write some code!</div>';
-                document.getElementById('dsa-card').style.display = 'block';
-                return;
-            }
-
-            const maxCount = concepts[0].count || 1;
-            el.innerHTML = concepts.map(c => `
-                <div class="concept-bar">
-                    <div class="concept-bar-name">${c.name}</div>
-                    <div class="concept-bar-track">
-                        <div class="concept-bar-fill" style="width:${Math.round((c.count / maxCount) * 100)}%"></div>
-                    </div>
-                    <div class="concept-bar-count">×${c.count}</div>
-                </div>
-            `).join('');
-        }
-
-        function renderScoreHistory(history) {
-            const el = document.getElementById('score-history');
-            if (!history || history.length === 0) {
-                el.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No activity yet. Start coding!</div>';
-                return;
-            }
-
-            el.innerHTML = history.map(h => {
-                const isPos = h.delta >= 0;
-                const deltaStr = (isPos ? '+' : '') + h.delta;
-                const deltaClass = isPos ? 'history-delta-pos' : 'history-delta-neg';
-                return `
-                <div class="history-row">
-                    <span class="${deltaClass}">${deltaStr}</span>
-                    <span class="history-reason">${h.reason}</span>
-                    <span class="history-total">${h.total} pts</span>
-                </div>`;
-            }).join('');
-        }
-
-        // NOTE: window.switchTab is already overridden above — do NOT add another override here.
-
-        function showCurrentMistakes(data) {
-            const issuesCard    = document.getElementById('current-issues-card');
-            const noIssuesMsg   = document.getElementById('no-issues-msg');
-            const issuesContent = document.getElementById('current-issues-content');
-
-            if (data.has_mistake && data.mistake) {
-                issuesCard.style.display  = 'block';
-                noIssuesMsg.style.display = 'none';
-                issuesContent.innerHTML =
-                    '<div style="padding:6px 10px;background:rgba(255,107,107,0.08);border-radius:4px;border-left:3px solid #ff6b6b;">' +
-                    '<div style="font-size:11px;color:#ff6b6b;font-weight:600;margin-bottom:2px;">' + (data.mistake.type || 'Issue') + '</div>' +
-                    '<div style="font-size:12px;">' + (data.mistake.description || 'Unknown issue') + '</div>' +
-                    '</div>';
-                if (data.major_concepts && data.major_concepts.length > 0) {
-                    issuesContent.innerHTML += '<div style="margin-top:8px;font-size:10px;color:var(--vscode-descriptionForeground);">Current code uses: ' + data.major_concepts.join(', ') + '</div>';
-                }
-            } else {
-                issuesCard.style.display  = 'none';
-                noIssuesMsg.style.display = 'flex';
-                noIssuesMsg.innerHTML = data.major_concepts && data.major_concepts.length > 0
-                    ? '✅ No issues! Using: ' + data.major_concepts.join(', ')
-                    : '✅ No issues in your current code!';
-            }
-        }
-
-        // ── Session timer ─────────────────────────────────────────────────────
-        let sessionStart = Date.now();
-        setInterval(() => {
-            const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
-            const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
-            const secs = String(elapsed % 60).padStart(2, '0');
-            const timerEl = document.getElementById('session-timer');
-            if (timerEl) { timerEl.textContent = `${mins}:${secs}`; }
-        }, 1000);
-
-        // ── Unified message listener ──────────────────────────────────────────
-        window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.type === 'explanation') {
-                showExplanation(message.data);
-            } else if (message.type === 'hint') {
-                showHint(message.data);
-            } else if (message.type === 'flow') {
-                showFlow(message.data);
-            } else if (message.type === 'loading') {
-                showLoading();
-            } else if (message.type === 'recommendations') {
-                showRecommendations(message.data);
-            } else if (message.type === 'autotest') {
-                showAutoTests(message.data);
-            } else if (message.type === 'trace') {
-                showTrace(message.data);
-            } else if (message.type === 'lineExplainLoading') {
-                const card = document.getElementById('line-explain-card');
-                card.style.display = 'block';
-                document.getElementById('line-explain-code').textContent =
-                    'Line ' + message.data.lineNumber + ': ' + message.data.line;
-                document.getElementById('line-explain-loading').style.display = 'flex';
-                document.getElementById('line-explain-text').textContent = '';
-                switchTab('explanation');
-                document.querySelector('.content').scrollTop = 0;
-            } else if (message.type === 'lineExplain') {
-                document.getElementById('line-explain-loading').style.display = 'none';
-                document.getElementById('line-explain-text').textContent = message.data.explanation;
-            } else if (message.type === 'switchTab') {
-                switchTab(message.data);
-            } else if (message.type === 'scoreInit') {
-                updateScoreDisplay(message.data.score);
-                renderBadges(message.data.badges);
-            } else if (message.type === 'scoreReward') {
-                updateScoreDisplay(message.data.score);
-                showToast(message.data.message, 'reward');
-                if (message.data.new_badges && message.data.new_badges.length > 0) {
-                    setTimeout(() => {
-                        showToast('🏆 New badge: ' + message.data.new_badges[0].name + ' ' + message.data.new_badges[0].icon, 'badge');
-                    }, 1000);
-                }
-                const lastAction = document.getElementById('last-action-card');
-                if (lastAction) { lastAction.style.display = 'block'; lastAction.textContent = message.data.message; }
-            } else if (message.type === 'scorePenalty') {
-                updateScoreDisplay(message.data.score);
-                showToast(message.data.message, 'penalty');
-            } else if (message.type === 'newBadge') {
-                showToast('🏆 Badge unlocked: ' + message.data.name + ' ' + message.data.icon, 'badge');
-            }
-        });
-
-        // ── Auto tests ────────────────────────────────────────────────────────
-        function showAutoTests(data) {
-            if (currentMode === 'developer') {
-                document.getElementById('autotest-card').style.display = 'none';
-                return;
-            }
-            const card    = document.getElementById('autotest-card');
-            const content = document.getElementById('autotest-content');
-
-            if (!data.tests || data.tests.length === 0) {
-                if (data.message) {
-                    card.style.display = 'block';
-                    content.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:4px 0;">ℹ️ ' + data.message + '</div>';
-                } else {
-                    card.style.display = 'none';
-                }
-                return;
-            }
-
-            const hardcodedNote = data.input_style === 'hardcoded'
-                ? '<div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-bottom:8px;padding:4px 8px;background:rgba(78,205,196,0.08);border-radius:4px;">ℹ️ Hardcoded inputs detected — showing 1 result</div>'
-                : '';
-
-            card.style.display = 'block';
-            content.innerHTML = hardcodedNote + data.tests.map(test => {
-                const isLang = test.note === 'hardcoded' && test.output && test.output.includes('locally');
-                return `
-                <div class="test-row">
-                    <div class="test-status">${test.success ? '✅' : '❌'}</div>
-                    <div class="test-content">
-                        <div class="test-desc">${test.description}</div>
-                        ${!isLang ? `<div class="test-input">▶ ${test.input_code}</div>` : ''}
-                        ${test.output && !test.error
-                            ? `<div class="test-output">→ ${test.output}</div>`
-                            : test.error
-                            ? `<div class="test-error">⚠ ${test.error}</div>`
-                            : ''}
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        // ── Recommendations ───────────────────────────────────────────────────
-        function showRecommendations(data) {
-            if (currentMode === 'developer') {
-                document.getElementById('resources-card').style.display = 'none';
-                return;
-            }
-            const card    = document.getElementById('resources-card');
-            const content = document.getElementById('resources-content');
-
-            if ((!data.leetcode || data.leetcode.length === 0) && !data.article) {
-                card.style.display = 'none';
-                return;
-            }
-
-            card.style.display = 'block';
-            let html = '';
-
-            if (data.leetcode && data.leetcode.length > 0) {
-                html += '<div class="resource-title">🟨 LeetCode Practice</div>';
-                data.leetcode.forEach(problem => {
-                    const diffClass = problem.difficulty === 'Easy' ? 'difficulty-easy' : 'difficulty-medium';
-                    html += `
-                        <div class="resource-card" onclick="openLink('${problem.url}')">
-                            <div class="resource-card-icon">💻</div>
-                            <div class="resource-card-content">
-                                <div class="resource-card-title">${problem.title}</div>
-                                <div class="resource-card-meta">
-                                    <span class="${diffClass}">${problem.difficulty}</span> · leetcode.com
-                                </div>
-                            </div>
-                            <div style="font-size:10px;color:var(--vscode-descriptionForeground);">→</div>
-                        </div>`;
-                });
-            }
-
-            if (data.article) {
-                html += '<div class="resource-title" style="margin-top:10px;">📖 Read More</div>';
-                html += `
-                    <div class="resource-card" onclick="openLink('${data.article.url}')">
-                        <div class="resource-card-icon">📄</div>
-                        <div class="resource-card-content">
-                            <div class="resource-card-title">${data.article.title}</div>
-                            <div class="resource-card-meta">Article · realpython.com</div>
-                        </div>
-                        <div style="font-size:10px;color:var(--vscode-descriptionForeground);">→</div>
-                    </div>`;
-            }
-
-            content.innerHTML = html;
-        }
-
-        function openLink(url) {
-            vscode.postMessage({ type: 'openLink', url: url });
-        }
-
-        // ── Execution trace stepper ───────────────────────────────────────────
-        let traceSteps   = [];
-        let currentStep  = 0;
 
         function requestTrace() {
-            document.getElementById('flow-loading').style.display = 'flex';
+            document.getElementById('flow-empty').style.display      = 'none';
+            document.getElementById('mermaid-container').style.display = 'none';
+            document.getElementById('stepper-container').style.display = 'none';
+            document.getElementById('flow-loading').style.display    = 'flex';
             document.getElementById('flow-loading-text').textContent = 'Running code trace...';
-            document.getElementById('mermaid-container').style.display  = 'none';
-            document.getElementById('stepper-container').style.display  = 'none';
             vscode.postMessage({ type: 'requestTrace' });
         }
 
-        function showTrace(data) {
-            document.getElementById('flow-loading').style.display = 'none';
+        function showFlow(mermaidCode) {
+            document.getElementById('flow-loading').style.display    = 'none';
+            document.getElementById('flow-empty').style.display      = 'none';
+            document.getElementById('stepper-container').style.display = 'none';
+            const container = document.getElementById('mermaid-container');
+            container.style.display = 'block';
+            if (!mermaidCode || !mermaidCode.trim()) {
+                container.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">Could not generate diagram. Try again.</div>';
+                return;
+            }
+            container.innerHTML =
+                '<div style="font-size:10px;opacity:0.5;margin-bottom:6px;">📊 Mermaid syntax — copy to mermaid.live to visualize</div>' +
+                '<pre style="font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">' +
+                escapeHtml(mermaidCode) + '</pre>';
+        }
 
-            if (!data.success || data.steps.length === 0) {
+        function escapeHtml(t) {
+            return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function showTrace(data) {
+            document.getElementById('flow-loading').style.display    = 'none';
+            document.getElementById('mermaid-container').style.display = 'none';
+            document.getElementById('flow-empty').style.display      = 'none';
+
+            if (!data.success && (!data.steps || data.steps.length === 0)) {
                 document.getElementById('mermaid-container').style.display = 'block';
                 document.getElementById('mermaid-container').innerHTML =
-                    '<div style="font-size:12px;color:var(--vscode-descriptionForeground);padding:12px;">⚠️ ' +
-                    (data.error || 'No steps to trace. Make sure your code runs without errors.') + '</div>';
+                    '<div style="font-size:12px;color:#ff6b6b;padding:8px;">⚠️ ' + (data.error || 'Could not trace. Check for errors.') + '</div>';
                 return;
             }
 
-            traceSteps  = data.steps;
+            traceSteps = data.steps || [];
             currentStep = 0;
             window.traceOutput = data.output || '';
-
             document.getElementById('stepper-container').style.display = 'block';
-            renderStep(currentStep);
-            switchTab('flow');
+            renderStep(0);
         }
 
         function renderStep(index) {
             const step = traceSteps[index];
             if (!step) { return; }
 
-            document.getElementById('step-counter').textContent = `Step ${index + 1} of ${traceSteps.length}`;
-
-            const lineContent = step.line_content || '';
+            document.getElementById('step-counter').textContent = 'Step ' + (index + 1) + ' of ' + traceSteps.length;
             document.getElementById('step-line').innerHTML =
-                `<span style="color:var(--vscode-descriptionForeground);font-size:10px;">Line ${step.line}</span><br>` +
-                `<span style="font-family:monospace;font-size:12px;">${lineContent}</span>`;
+                '<span style="font-size:10px;color:var(--vscode-descriptionForeground);">Line ' + step.line + '</span><br>' +
+                '<span style="font-family:monospace;font-size:12px;">' + escapeHtml(step.line_content || '') + '</span>';
 
+            const vars = step.vars || {};
             const varsEl = document.getElementById('step-vars');
-            const vars   = step.vars;
-            if (!vars || Object.keys(vars).length === 0) {
-                varsEl.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No variables yet</div>';
+            if (Object.keys(vars).length === 0) {
+                varsEl.innerHTML = '<div style="font-size:11px;color:var(--vscode-descriptionForeground);">No variables yet</div>';
             } else {
                 varsEl.innerHTML = Object.entries(vars).map(([k, v]) =>
-                    `<span class="var-pill"><span class="var-name">${k}</span>=<span class="var-value">${v}</span></span>`
+                    '<span class="var-pill"><span class="var-name">' + k + '</span>=<span class="var-value">' + escapeHtml(String(v)) + '</span></span>'
                 ).join('');
             }
 
@@ -1621,97 +1068,307 @@
             }
         }
 
-        function nextStep() {
-            if (currentStep < traceSteps.length - 1) { currentStep++; renderStep(currentStep); }
-        }
+        function nextStep() { if (currentStep < traceSteps.length - 1) { currentStep++; renderStep(currentStep); } }
+        function prevStep() { if (currentStep > 0) { currentStep--; renderStep(currentStep); } }
 
-        function prevStep() {
-            if (currentStep > 0) { currentStep--; renderStep(currentStep); }
-        }
-
-        // ── Mode toggle ───────────────────────────────────────────────────────
-        let currentMode = 'learning';
-
-        function handleModeToggle(isDevMode) {
-            currentMode = isDevMode ? 'developer' : 'learning';
-            vscode.postMessage({ type: 'setMode', mode: currentMode });
-
-            if (isDevMode) {
-                document.getElementById('concepts-card').style.display        = 'none';
-                document.getElementById('resources-card').style.display       = 'none';
-                document.getElementById('autotest-card').style.display        = 'none';
-                document.getElementById('line-explain-card').style.display    = 'none';
-                document.getElementById('classification-card').style.display  = 'none'; // H3 NEW
-                document.getElementById('mode-learning-label').style.color    = 'var(--vscode-descriptionForeground)';
-                document.getElementById('mode-dev-label').style.color         = '#7c6ff7';
-            } else {
-                document.getElementById('mode-learning-label').style.color    = '#6bcb77';
-                document.getElementById('mode-dev-label').style.color         = 'var(--vscode-descriptionForeground)';
-                document.getElementById('explanation-loading').style.display  = 'flex';
-                document.getElementById('explanation-content').style.display  = 'none';
-                vscode.postMessage({ type: 'reanalyze' });
+        // ── Resources ─────────────────────────────────────────────────────────────────
+        function showRecommendations(data) {
+            if (currentMode === 'developer') {
+                document.getElementById('resources-card').style.display = 'none';
+                return;
             }
+            const card    = document.getElementById('resources-card');
+            const content = document.getElementById('resources-content');
+            if (!data.leetcode?.length && !data.article) { card.style.display = 'none'; return; }
+
+            card.style.display = 'block';
+            let html = '';
+
+            if (data.leetcode?.length) {
+                html += '<div class="resource-title">🟨 LeetCode Practice</div>';
+                data.leetcode.forEach(p => {
+                    const cls = p.difficulty === 'Easy' ? 'difficulty-easy' : 'difficulty-medium';
+                    html += `<div class="resource-card" onclick="openLink('${p.url}')">
+                        <div class="resource-card-icon">💻</div>
+                        <div class="resource-card-content">
+                            <div class="resource-card-title">${p.title}</div>
+                            <div class="resource-card-meta"><span class="${cls}">${p.difficulty}</span> · leetcode.com</div>
+                        </div>
+                        <span style="font-size:10px;color:var(--vscode-descriptionForeground);">→</span>
+                    </div>`;
+                });
+            }
+
+            if (data.article) {
+                html += '<div class="resource-title" style="margin-top:8px;">📖 Read More</div>';
+                html += `<div class="resource-card" onclick="openLink('${data.article.url}')">
+                    <div class="resource-card-icon">📄</div>
+                    <div class="resource-card-content">
+                        <div class="resource-card-title">${data.article.title}</div>
+                        <div class="resource-card-meta">Article</div>
+                    </div>
+                    <span style="font-size:10px;color:var(--vscode-descriptionForeground);">→</span>
+                </div>`;
+            }
+
+            content.innerHTML = html;
+
+            // Scroll resources into view smoothly
+            setTimeout(() => {
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 200);
         }
 
-        // ── Line explain ──────────────────────────────────────────────────────
+        function openLink(url) { vscode.postMessage({ type: 'openLink', url: url }); }
+
+        // ── Auto tests ────────────────────────────────────────────────────────────────
+        function showAutoTests(data) {
+            if (currentMode === 'developer') {
+                document.getElementById('autotest-card').style.display = 'none';
+                return;
+            }
+            const card    = document.getElementById('autotest-card');
+            const content = document.getElementById('autotest-content');
+
+            if (!data.tests || data.tests.length === 0) {
+                if (data.message) {
+                    card.style.display = 'block';
+                    content.innerHTML = '<div style="font-size:11px;color:var(--vscode-descriptionForeground);">ℹ️ ' + data.message + '</div>';
+                } else {
+                    card.style.display = 'none';
+                }
+                return;
+            }
+
+            card.style.display = 'block';
+            const note = data.input_style === 'hardcoded'
+                ? '<div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-bottom:6px;padding:3px 8px;background:rgba(78,205,196,0.08);border-radius:4px;">ℹ️ Hardcoded inputs — 1 result shown</div>'
+                : '';
+
+            content.innerHTML = note + data.tests.map(t => `
+                <div class="test-row">
+                    <div class="test-status">${t.success ? '✅' : '❌'}</div>
+                    <div class="test-content">
+                        <div class="test-desc">${t.description}</div>
+                        <div class="test-input">▶ ${escapeHtml(t.input_code)}</div>
+                        ${t.output && !t.error ? '<div class="test-output">→ ' + escapeHtml(t.output) + '</div>' : ''}
+                        ${t.error ? '<div class="test-error">⚠ ' + escapeHtml(t.error) + '</div>' : ''}
+                    </div>
+                </div>`).join('');
+        }
+
+        // ── Line explain ──────────────────────────────────────────────────────────────
         function closeLineExplain() {
             document.getElementById('line-explain-card').style.display = 'none';
         }
 
-        // Reset all stats — clear inflated data
-        async function resetStats() {
+        // ── Progress tab ──────────────────────────────────────────────────────────────
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+            const el = document.getElementById('session-timer');
+            if (el) {
+                el.textContent =
+                    String(Math.floor(elapsed / 60)).padStart(2,'0') + ':' +
+                    String(elapsed % 60).padStart(2,'0');
+            }
+        }, 1000);
+
+        async function loadProgress() {
+            sessionStart = Date.now();
+            document.getElementById('progress-loading').style.display  = 'flex';
+            document.getElementById('progress-content').style.display  = 'none';
+
             try {
-                const resp = await fetch('http://localhost:8000/reset-stats', { method: 'POST' });
-                const data = await resp.json();
-                if (data.status === 'ok') {
-                    loadProgress();
-                }
+                const [sRes, scRes] = await Promise.all([
+                    fetch('http://localhost:8000/stats'),
+                    fetch('http://localhost:8000/score')
+                ]);
+                if (!sRes.ok || !scRes.ok) { throw new Error('Server error'); }
+                const stats = await sRes.json();
+                const sc    = await scRes.json();
+
+                document.getElementById('progress-loading').style.display = 'none';
+                document.getElementById('progress-content').style.display = 'block';
+
+                renderScoreSection(sc);
+                renderBadgesGrid(sc.badges);
+                renderStatsRow(stats);
+                renderConceptBars(stats.top_concepts);
+                renderScoreHistory(sc.history);
             } catch (e) {
-                console.error('Reset stats error:', e);
+                document.getElementById('progress-loading').style.display = 'none';
+                document.getElementById('progress-content').style.display = 'block';
+                document.getElementById('badges-grid').innerHTML =
+                    '<div style="font-size:11px;color:#ff6b6b;">⚠️ Cannot load stats. Is the backend running?</div>';
             }
         }
-        // ── GAMIFICATION ──────────────────────────────────────────────────────────────
 
-        function showToast(message, type) {
-            // Remove any existing toasts
-            document.querySelectorAll('.score-toast').forEach(t => t.remove());
-            const toast = document.createElement('div');
-            toast.className = `score-toast toast-${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2600);
+        function renderScoreSection(sc) {
+            const score  = sc.score  || 0;
+            const streak = sc.streak || 0;
+            updateScoreDisplay(score);
+            animateNumber(document.getElementById('big-streak'), 0, streak);
+
+            const lEl = document.getElementById('score-level-label');
+            if (score >= 100) {
+                lEl.textContent = '🏆 Champion';
+                lEl.style.cssText = 'background:rgba(255,217,61,0.2);color:#ffd93d;font-size:9px;padding:2px 7px;border-radius:10px;display:inline-block;';
+            } else if (score >= 50) {
+                lEl.textContent = '⭐ Advanced';
+                lEl.style.cssText = 'background:rgba(124,111,247,0.15);color:#9d95f5;font-size:9px;padding:2px 7px;border-radius:10px;display:inline-block;';
+            } else if (score >= 20) {
+                lEl.textContent = '🌱 Learning';
+                lEl.style.cssText = 'background:rgba(107,203,119,0.15);color:#6bcb77;font-size:9px;padding:2px 7px;border-radius:10px;display:inline-block;';
+            } else {
+                lEl.textContent = '👶 Just Started';
+                lEl.style.cssText = 'background:rgba(170,170,170,0.1);color:var(--vscode-descriptionForeground);font-size:9px;padding:2px 7px;border-radius:10px;display:inline-block;';
+            }
+
+            const sEl = document.getElementById('streak-label');
+            sEl.textContent = streak === 0 ? 'Start coding to build a streak!'
+                : streak === 1 ? 'Keep it up tomorrow!'
+                : streak + ' days in a row 💪';
         }
 
-        function updateScoreDisplay(score) {
-            document.getElementById('score-display').textContent = '⭐ ' + score + ' pts';
-            const bigScore = document.getElementById('big-score');
-            if (bigScore) { bigScore.textContent = score; }
-        }
-
-        function renderBadges(badges) {
-            const container = document.getElementById('badges-container');
-            if (!container) { return; }
-            if (!badges || badges.length === 0) {
-                container.innerHTML = '<div style="font-size:12px;color:var(--vscode-descriptionForeground);">No badges yet — keep coding!</div>';
+        function renderBadgesGrid(badges) {
+            const grid = document.getElementById('badges-grid');
+            if (!badges?.length) {
+                grid.innerHTML = '<div style="font-size:11px;color:var(--vscode-descriptionForeground);">No badges yet — keep coding!</div>';
                 return;
             }
-            container.innerHTML = badges.map(b =>
-                `<span class="badge-pill ${b.earned ? '' : 'locked'}" title="${b.desc}">
-                    ${b.icon} ${b.name}
-                </span>`
-            ).join('');
+            const earned = badges.filter(b => b.earned);
+            const locked = badges.filter(b => !b.earned);
+            let html = '<div class="badge-grid">';
+            [...earned, ...locked].forEach(b => {
+                html += `<div class="badge-card ${b.earned ? 'earned' : 'locked'}" id="badge-${b.id}" title="${b.desc}">
+                    <div class="badge-icon">${b.icon}</div>
+                    <div class="badge-info">
+                        <div class="badge-name">${b.name}</div>
+                        <div class="badge-desc">${b.desc}</div>
+                    </div>
+                    <div class="badge-check">${b.earned ? '✓' : '🔒'}</div>
+                </div>`;
+            });
+            html += '</div>';
+            html += `<div style="font-size:10px;color:var(--vscode-descriptionForeground);margin-top:7px;text-align:center;">${earned.length} / ${badges.length} badges earned</div>`;
+            grid.innerHTML = html;
         }
 
-        // ── Handle gamification messages ─────────────────────────────────────────────
-        // Add these inside your main window.addEventListener('message') handler:
+        function renderStatsRow(stats) {
+            document.getElementById('stat-detected').textContent = stats.total_mistakes          || 0;
+            document.getElementById('stat-fixed').textContent    = stats.fixed_mistakes          || 0;
+            document.getElementById('stat-concepts').textContent = stats.unique_major_concepts   || 0;
+        }
 
-        // IN YOUR EXISTING MESSAGE LISTENER, add these cases:
-        // } else if (message.type === 'scoreInit') {
-        //     updateScoreDisplay(message.data.score);
-        //     renderBadges(message.data.badges);
-        // } else if (message.type === 'scoreReward') { ... }
-        // etc.
-    </script>
+        function renderConceptBars(concepts) {
+            const el = document.getElementById('progress-concepts');
+            if (!concepts?.length) {
+                el.innerHTML = '<div style="font-size:11px;color:var(--vscode-descriptionForeground);">No DSA concepts yet. Write some algorithms!</div>';
+                return;
+            }
+            const max = concepts[0].count || 1;
+            el.innerHTML = concepts.map(c => `
+                <div class="concept-bar">
+                    <div class="concept-bar-name">${c.name}</div>
+                    <div class="concept-bar-track">
+                        <div class="concept-bar-fill" style="width:${Math.round((c.count/max)*100)}%"></div>
+                    </div>
+                    <div class="concept-bar-count">×${c.count}</div>
+                </div>`).join('');
+        }
+
+        function renderScoreHistory(history) {
+            const el = document.getElementById('score-history');
+            if (!history?.length) {
+                el.innerHTML = '<div style="font-size:11px;color:var(--vscode-descriptionForeground);">No activity yet. Start coding!</div>';
+                return;
+            }
+            el.innerHTML = history.map(h => {
+                const pos = h.delta >= 0;
+                return `<div class="history-row">
+                    <span class="${pos ? 'history-delta-pos' : 'history-delta-neg'}">${pos ? '+' : ''}${h.delta}</span>
+                    <span class="history-reason">${h.reason}</span>
+                    <span class="history-total">${h.total} pts</span>
+                </div>`;
+            }).join('');
+        }
+
+        function renderBadges(badges) { renderBadgesGrid(badges); }
+
+        // ── Main message listener ─────────────────────────────────────────────────────
+        window.addEventListener('message', event => {
+            const msg = event.data;
+
+            if (msg.type === 'explanation') {
+                showExplanation(msg.data);
+
+            } else if (msg.type === 'hint') {
+                showHint(msg.data);
+
+            } else if (msg.type === 'flow') {
+                showFlow(msg.data);
+
+            } else if (msg.type === 'loading') {
+                showLoading();
+
+            } else if (msg.type === 'recommendations') {
+                showRecommendations(msg.data);
+
+            } else if (msg.type === 'autotest') {
+                showAutoTests(msg.data);
+
+            } else if (msg.type === 'trace') {
+                showTrace(msg.data);
+
+            } else if (msg.type === 'lineExplainLoading') {
+                const card = document.getElementById('line-explain-card');
+                card.style.display = 'block';
+                document.getElementById('line-explain-code').textContent =
+                    'Line ' + msg.data.lineNumber + ': ' + msg.data.line;
+                document.getElementById('line-explain-loading').style.display = 'flex';
+                document.getElementById('line-explain-text').textContent = '';
+                switchTab('explanation');
+                document.querySelector('.content').scrollTo({ top: 0, behavior: 'smooth' });
+
+            } else if (msg.type === 'lineExplain') {
+                document.getElementById('line-explain-loading').style.display = 'none';
+                document.getElementById('line-explain-text').textContent = msg.data.explanation;
+
+            } else if (msg.type === 'switchTab') {
+                switchTab(msg.data);
+
+            } else if (msg.type === 'scoreInit') {
+                updateScoreDisplay(msg.data.score);
+                renderBadgesGrid(msg.data.badges);
+
+            } else if (msg.type === 'scoreReward') {
+                updateScoreDisplay(msg.data.score);
+                showToast(msg.data.message, 'reward');
+                const la = document.getElementById('last-action-card');
+                if (la) { la.style.display = 'block'; la.textContent = msg.data.message; }
+                if (msg.data.new_badges?.length) {
+                    setTimeout(() => showToast('🏆 Badge: ' + msg.data.new_badges[0].name + ' ' + msg.data.new_badges[0].icon, 'badge'), 1000);
+                    // Flash badge card if visible
+                    const badgeEl = document.getElementById('badge-' + msg.data.new_badges[0].id);
+                    if (badgeEl) {
+                        badgeEl.classList.add('flash');
+                        setTimeout(() => badgeEl.classList.remove('flash'), 2000);
+                    }
+                }
+
+            } else if (msg.type === 'scorePenalty') {
+                updateScoreDisplay(msg.data.score);
+                showToast(msg.data.message, 'penalty');
+
+            } else if (msg.type === 'newBadge') {
+                showToast('🏆 ' + msg.data.name + ' ' + msg.data.icon + ' unlocked!', 'badge');
+
+            } else if (msg.type === 'backendOffline') {
+                setStatus('offline');
+                showToast('⚠️ Backend offline — restart FastAPI server', 'penalty');
+            }
+        });
+</script>
 
 </body>
 </html>
