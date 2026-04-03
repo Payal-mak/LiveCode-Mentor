@@ -21,46 +21,6 @@ Beginner programmers often struggle to understand the logic and behavior of the 
 
 ## ✨ Features
 
-### Core AI Features
-| Feature | Description | FR |
-|---|---|---|
-| Real-time code monitoring | Detects changes and saves automatically | FR1, FR2 |
-| AI explanations | Plain English explanation of what your code does | FR3 |
-| Beginner-friendly errors | Syntax errors explained in simple language | FR4 |
-| Concept detection | Detects loops, functions, recursion, OOP etc. | FR5 |
-| Code flow diagram | Generates Mermaid.js flowchart of execution | FR6 |
-| Execution traces | Step-by-step variable values as code runs | FR7 |
-| Auto test inputs | Automatically runs safe tests on your code | FR8 |
-| Mistake detection | Finds off-by-one errors, infinite loops, mutable defaults | FR9 |
-| Hint generation | Gives hints without giving away the answer | FR10 |
-| Hint→fix→check loop | Guides user through fixing mistakes | FR11 |
-| Dynamic updates | Explanation updates every time code changes | FR16 |
-
-### Personalization Features
-| Feature | Description | FR |
-|---|---|---|
-| Learner model | Tracks concepts learned and mistakes made in SQLite | FR12 |
-| Adaptive explanations | Beginner/Intermediate/Expert level explanations | FR13 |
-| LeetCode suggestions | Suggests relevant practice problems | FR14 |
-| Article recommendations | Suggests tutorials and documentation | FR15 |
-| Click-to-explain | Right-click any line for deep explanation | FR19 |
-
-### Visualization Features
-| Feature | Description | FR |
-|---|---|---|
-| Interactive visualization | Visual execution flow in Flow tab | FR20 |
-| Step-through execution | Navigate code execution step by step | FR21 |
-| Learning/Dev mode | Toggle between detailed and minimal explanations | FR17 |
-| Progress dashboard | See your top concepts, mistakes, and session stats | FR23 |
-
-### Bonus Features
-| Feature | Description |
-|---|---|
-| Complexity Analysis | Time and Space complexity (Big O) for any code |
-| Session Timer | Tracks how long you've been coding |
-
----
-
 ## 🛠️ Tech Stack
 
 ```
