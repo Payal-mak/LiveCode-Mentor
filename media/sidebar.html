@@ -413,6 +413,7 @@
         border: 1px solid var(--vscode-panel-border);
         background: var(--vscode-editor-background);
         transition: all 0.2s;
+        min-width: 0; overflow: hidden;
     }
     .badge-card.earned {
         background: rgba(255,217,61,0.07);
@@ -664,6 +665,7 @@
 
     <!-- Stepper -->
     <div id="stepper-container" style="display:none;">
+      <div id="trace-warning" style="display:none;font-size:11px;color:#FFB74D;padding:6px 8px;background:rgba(255,183,77,0.1);border:1px solid rgba(255,183,77,0.3);border-radius:5px;margin-bottom:8px;"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div style="font-size:11px;color:var(--vscode-descriptionForeground);" id="step-counter">Step 1 of 1</div>
         <div style="display:flex;gap:5px;">
@@ -879,6 +881,9 @@
 
         // ── Show explanation ─────────────────────────────────────────────────────────
         function showExplanation(data) {
+            // Cache code/language for trace fallback
+            if (data.code)     { window._lastCode = data.code; }
+            if (data.language) { window._lastLang = data.language; }
             clearTimeoutState();
             document.getElementById('explanation-skeleton').style.display = 'none';
             document.getElementById('explain-empty').style.display        = 'none';
@@ -1000,6 +1005,39 @@
             document.getElementById('flow-loading').style.display    = 'flex';
             document.getElementById('flow-loading-text').textContent = 'Running code trace...';
             vscode.postMessage({ type: 'requestTrace' });
+
+            // Fallback: if extension doesn't respond in 3s, fetch directly
+            window._traceTimeout = setTimeout(async () => {
+                // Check if stepper already shown (extension responded)
+                if (document.getElementById('stepper-container').style.display !== 'none' ||
+                    document.getElementById('mermaid-container').style.display !== 'none') {
+                    return;
+                }
+                try {
+                    const code = window._lastCode || '';
+                    const lang = window._lastLang || 'python';
+                    if (!code) {
+                        document.getElementById('flow-loading').style.display = 'none';
+                        document.getElementById('mermaid-container').style.display = 'block';
+                        document.getElementById('mermaid-container').innerHTML =
+                            '<div style="font-size:12px;color:#ff6b6b;padding:8px;">⚠️ No code to trace. Open a file and edit it first.</div>';
+                        return;
+                    }
+                    const res = await fetch('http://localhost:8000/trace', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code, language: lang })
+                    });
+                    if (!res.ok) { throw new Error('Backend error ' + res.status); }
+                    const data = await res.json();
+                    showTrace(data);
+                } catch (err) {
+                    document.getElementById('flow-loading').style.display = 'none';
+                    document.getElementById('mermaid-container').style.display = 'block';
+                    document.getElementById('mermaid-container').innerHTML =
+                        '<div style="font-size:12px;color:#ff6b6b;padding:8px;">⚠️ Could not run trace. Make sure the backend is running.</div>';
+                }
+            }, 3000);
         }
 
         function showFlow(mermaidCode) {
@@ -1030,13 +1068,23 @@
             if (!data.success && (!data.steps || data.steps.length === 0)) {
                 document.getElementById('mermaid-container').style.display = 'block';
                 document.getElementById('mermaid-container').innerHTML =
-                    '<div style="font-size:12px;color:#ff6b6b;padding:8px;">⚠️ ' + (data.error || 'Could not trace. Check for errors.') + '</div>';
+                    '<div style="font-size:12px;color:#ff6b6b;padding:8px;">⚠️ ' + (data.error || 'Could not trace. Check your code for errors.') + '</div>';
                 return;
             }
 
             traceSteps = data.steps || [];
             currentStep = 0;
             window.traceOutput = data.output || '';
+
+            // If we have steps but also an error (partial trace), show a warning banner
+            const warnEl = document.getElementById('trace-warning');
+            if (!data.success && traceSteps.length > 0) {
+                warnEl.style.display = 'block';
+                warnEl.textContent = '⚠️ Trace stopped at error: ' + (data.error || 'runtime error');
+            } else {
+                warnEl.style.display = 'none';
+            }
+
             document.getElementById('stepper-container').style.display = 'block';
             renderStep(0);
         }
@@ -1174,7 +1222,11 @@
         }, 1000);
 
         async function loadProgress() {
-            sessionStart = Date.now();
+            // Only reset session timer on very first load, not on manual refresh
+            if (!window._progressLoadedOnce) {
+                window._progressLoadedOnce = true;
+                sessionStart = Date.now();
+            }
             document.getElementById('progress-loading').style.display  = 'flex';
             document.getElementById('progress-content').style.display  = 'none';
 
@@ -1309,6 +1361,8 @@
                 showFlow(msg.data);
 
             } else if (msg.type === 'loading') {
+                if (msg.data && msg.data.code)     { window._lastCode = msg.data.code; }
+                if (msg.data && msg.data.language) { window._lastLang = msg.data.language; }
                 showLoading();
 
             } else if (msg.type === 'recommendations') {
@@ -1318,6 +1372,7 @@
                 showAutoTests(msg.data);
 
             } else if (msg.type === 'trace') {
+                clearTimeout(window._traceTimeout);
                 showTrace(msg.data);
 
             } else if (msg.type === 'lineExplainLoading') {
@@ -1362,6 +1417,10 @@
 
             } else if (msg.type === 'newBadge') {
                 showToast('🏆 ' + msg.data.name + ' ' + msg.data.icon + ' unlocked!', 'badge');
+
+            } else if (msg.type === 'currentCode') {
+                if (msg.data && msg.data.code)     { window._lastCode = msg.data.code; }
+                if (msg.data && msg.data.language) { window._lastLang = msg.data.language; }
 
             } else if (msg.type === 'backendOffline') {
                 setStatus('offline');
