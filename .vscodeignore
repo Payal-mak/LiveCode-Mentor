@@ -1,14 +1,28 @@
-.vscode/**
-.vscode-test/**
-out/**
-node_modules/**
-src/**
+# Python virtual environments
+.venv/
+backend/venv/
+**/__pycache__/
+
+# Backend (users run this separately)
+backend/.env
+backend/learner.db
+backend/main.py.bak
+
+# Dev/build files
+node_modules/
+.git/
+out/
+*.vsix
+
+# Marathon roadmap HTMLs (not needed in extension)
+day1_marathon_roadmap.html
+day_2_marathon_roadmap.html
+day_3_marathon_roadmap.html
+prototype.html
+
+# Misc
 .gitignore
-.yarnrc
+.eslintrc*
+tsconfig*.json
 esbuild.js
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/eslint.config.mjs
 **/*.map
-**/*.ts
-**/.vscode-test.*
