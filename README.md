@@ -1,5 +1,7 @@
 # 🎓 LiveCode Mentor
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/payal-mak.livecode-mentor)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+
 > An AI-powered VSCode extension that acts as a real-time coding tutor for beginner programmers — explaining code, detecting mistakes, visualizing execution, and adapting to your learning level as you type.
 
 ---
