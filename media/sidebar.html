@@ -258,6 +258,12 @@
         color: #9d95f5;
     }
 
+    .ds-pill {
+        background: rgba(255,183,77,0.12);
+        border: 1px solid rgba(255,183,77,0.35);
+        color: #FFB74D;
+    }
+
     .paradigm-pill {
         background: rgba(78,205,196,0.12);
         border: 1px solid rgba(78,205,196,0.3);
@@ -600,7 +606,11 @@
           <div class="pill-group-label">Algorithm / Technique</div>
           <div class="concepts" id="algo-pills"></div>
         </div>
-        <div id="paradigm-group" style="display:none;">
+        <div id="ds-group" style="display:none;margin-top:8px;">
+          <div class="pill-group-label">Data Structures</div>
+          <div class="concepts" id="ds-pills"></div>
+        </div>
+        <div id="paradigm-group" style="display:none;margin-top:8px;">
           <div class="pill-group-label">Paradigm</div>
           <div class="concepts" id="paradigm-pills"></div>
         </div>
@@ -875,7 +885,28 @@
                 document.getElementById('mode-dev-label').style.color = 'var(--vscode-descriptionForeground)';
                 document.getElementById('explanation-skeleton').style.display = 'block';
                 document.getElementById('explanation-content').style.display  = 'none';
+                // Hide complexity card in learning mode
+                document.getElementById('complexity-card').style.display = 'none';
                 vscode.postMessage({ type: 'reanalyze' });
+                // Re-fetch recommendations and auto-tests after a short delay
+                // (reanalyze triggers the extension, but it may not re-call these)
+                setTimeout(() => {
+                    vscode.postMessage({ type: 'requestRecommendations' });
+                    vscode.postMessage({ type: 'requestAutoTest' });
+                    // Fallback direct fetch if extension doesn't relay
+                    if (window._lastCode && window._lastLang) {
+                        const body = JSON.stringify({ code: window._lastCode, language: window._lastLang, mode: 'learning' });
+                        const headers = { 'Content-Type': 'application/json' };
+                        fetch('http://localhost:8000/recommendations', { method: 'POST', headers, body })
+                            .then(r => r.ok ? r.json() : null)
+                            .then(d => { if (d) showRecommendations(d); })
+                            .catch(() => {});
+                        fetch('http://localhost:8000/auto-test', { method: 'POST', headers, body })
+                            .then(r => r.ok ? r.json() : null)
+                            .then(d => { if (d) showAutoTests(d); })
+                            .catch(() => {});
+                    }
+                }, 1200);
             }
         }
 
@@ -929,11 +960,11 @@
                 document.getElementById('error-card').style.display = 'none';
             }
 
-            // Grouped concept pills (algorithms + paradigms)
+            // Grouped concept pills (algorithms + data structures + paradigms)
             const isDevMode = currentMode === 'developer';
             const usesCard = document.getElementById('uses-card');
 
-            if (!isDevMode && (data.algorithms?.length > 0 || data.paradigms?.length > 0)) {
+            if (!isDevMode && (data.algorithms?.length > 0 || data.data_structures?.length > 0 || data.paradigms?.length > 0)) {
                 usesCard.style.display = 'block';
 
                 const algoGroup = document.getElementById('algo-group');
@@ -943,6 +974,15 @@
                         data.algorithms.map(a => '<span class="concept-pill algo-pill">' + a + '</span>').join('');
                 } else {
                     algoGroup.style.display = 'none';
+                }
+
+                const dsGroup = document.getElementById('ds-group');
+                if (data.data_structures && data.data_structures.length > 0) {
+                    dsGroup.style.display = 'block';
+                    document.getElementById('ds-pills').innerHTML =
+                        data.data_structures.map(d => '<span class="concept-pill ds-pill">' + d + '</span>').join('');
+                } else {
+                    dsGroup.style.display = 'none';
                 }
 
                 const paraGroup = document.getElementById('paradigm-group');

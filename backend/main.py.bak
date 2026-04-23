@@ -915,16 +915,7 @@ Return ONLY valid JSON. No markdown."""
         )
         raw = response.choices[0].message.content.strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
-        # 2-attempt parse — same pattern as other endpoints
-        try:
-            result = json.loads(raw)
-        except json.JSONDecodeError:
-            brace_start = raw.find('{')
-            brace_end   = raw.rfind('}')
-            if brace_start != -1 and brace_end != -1:
-                result = json.loads(raw[brace_start:brace_end + 1])
-            else:
-                raise
+        result = json.loads(raw)
         print(f"[LiveCode Mentor] Recommendations generated: {len(result.get('leetcode', []))} problems")
         return result
     except json.JSONDecodeError as e:
@@ -1285,7 +1276,6 @@ Return ONLY valid JSON. No markdown. No explanation."""
         tests_to_run = test_data.get("tests", [])[:num_tests_expected]
 
         # Run baseline first to get original output
-        mock_inputs = []   # auto-test doesn't need mock inputs — code runs directly
         baseline_result = trace_code(payload.code.rstrip(), max_steps=100, mock_inputs=mock_inputs)
         baseline_output = baseline_result.get("output", "").strip()
 
@@ -1474,7 +1464,7 @@ def check_and_award_badges(current_score: int) -> list:
 @app.get("/score")
 async def get_current_score():
     score = get_score()
-    newly_earned = check_and_award_badges(score)   # returns list of newly earned badge IDs
+    check_and_award_badges(score)
     earned = get_badges()
     earned_ids = {b["badge_id"] for b in earned}
     streak = get_streak()
@@ -1482,7 +1472,7 @@ async def get_current_score():
     # Award streak badge
     if streak >= 3:
         if award_badge("streak_3"):
-            newly_earned.append("streak_3")
+            pass  # will show on next fetch
 
     badge_details = []
     for b in BADGE_DEFS:
@@ -1497,12 +1487,25 @@ async def get_current_score():
 
     stats = get_stats()
     return {
-        "score":      score,
-        "streak":     streak,
-        "badges":     badge_details,
-        "history":    get_score_history(5),
-        "stats":      stats,
-        "new_badges": [b for b in badge_details if b["id"] in newly_earned]
+        "score":   score,
+        "streak":  streak,
+        "badges":  badge_details,
+        "history": get_score_history(5),
+        "stats":   stats
     }
 
-# (duplicate /score endpoint removed — see the complete one above)
+@app.get("/score")
+async def get_current_score():
+    score = get_score()
+    newly_earned = check_and_award_badges(score)
+    earned_badge_ids = [b["badge_id"] for b in get_badges()]
+    badge_details = [
+        {**b, "earned": b["id"] in earned_badge_ids}
+        for b in BADGE_DEFS
+    ]
+    return {
+        "score": score,
+        "badges": badge_details,
+        "history": get_score_history(5),
+        "new_badges": [b for b in badge_details if b["id"] in newly_earned]
+    }
