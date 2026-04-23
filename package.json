@@ -4,7 +4,7 @@
   "description": "AI-powered coding tutor for beginners",
   "version": "0.0.1",
   "publisher":"payal-mak",
-  "icon": "media/icon.svg",
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.110.0"
   },
