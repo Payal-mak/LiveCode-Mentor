@@ -1,244 +1,198 @@
 # 🎓 LiveCode Mentor
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/payal-mak.livecode-mentor)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/payal-mak.livecode-mentor?color=blue&label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/payal-mak.livecode-mentor?color=green)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/payal-mak.livecode-mentor)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> An AI-powered VSCode extension that acts as a real-time coding tutor for beginner programmers — explaining code, detecting mistakes, visualizing execution, and adapting to your learning level as you type.
-
----
-
-## 📌 Problem Statement
-
-Beginner programmers often struggle to understand the logic and behavior of the code they write. While writing code, students don't fully understand what's happening — they copy snippets, do trial-and-error debugging, and constantly switch between their IDE and external tools like ChatGPT or StackOverflow.
-
-**The core problems:**
-- No real-time explanation of what code actually does
-- Error messages are too technical for beginners
-- Learning and coding happen as separate, disconnected activities
-- Constant context-switching breaks the coding flow
-- No personalized guidance based on what the user already knows
-
-**LiveCode Mentor solves this** by integrating an AI tutor directly inside VSCode — explaining your code as you type, detecting mistakes before they become bugs, and adapting its explanations based on your learning history.
+> **AI-powered coding tutor inside VS Code** — real-time explanations, error detection, execution tracing, and personalized learning for beginner programmers.
 
 ---
 
-## ✨ Features
+## ✨ What is LiveCode Mentor?
 
-## 🛠️ Tech Stack
+Beginner programmers often struggle to understand **why** their code works — not just whether it runs. LiveCode Mentor sits right inside VS Code and acts as your personal coding tutor, explaining your code as you write it, detecting mistakes before you even run it, and adapting to your skill level over time.
 
+No more switching between your IDE, StackOverflow, and ChatGPT. Everything you need to **learn while you code** is in one place.
+
+---
+
+## 🚀 Features
+
+### 🧠 Real-Time AI Explanations
+Paste or write code and instantly get a plain-English explanation tailored to your experience level — beginner, intermediate, or expert. Powered by **Llama 3.3 70B via Groq API**.
+
+### 🐛 Mistake Detection
+Automatically detects common beginner errors:
+- Off-by-one errors in loops
+- Infinite `while True` loops with no `break`
+- Mutable default arguments in functions
+
+### 📊 Complexity Analysis
+Every explanation includes **Time & Space Complexity** with Big-O notation and a plain-English reason — so you actually understand *why* it's O(n log n).
+
+### 🔍 Deep DSA Classification
+Automatically detects algorithm types: Binary Search, Dynamic Programming, Two Pointer, Graph BFS/DFS, Backtracking, Sliding Window, and 10+ more — and gives algorithm-specific explanations.
+
+### 📈 Step-Through Execution Tracer
+Watch your Python code execute **step by step** — see exactly what each variable holds at every line. Like a debugger, but explained in English.
+
+### 🧪 Auto Test Generator
+Automatically generates test cases and runs them against your code — no manual test writing needed.
+
+### 🗺️ Flow Diagram Generator
+Converts your code into a **Mermaid.js flowchart** — visualize your logic at a glance.
+
+### 📚 Smart Recommendations
+Get **LeetCode problem suggestions** and **learning articles** matched to exactly what you're practicing right now.
+
+### 🏆 Gamification System
+Earn **points and badges** as you code:
+- 🐛 Bug Squasher — Fix your first bug
+- 🧭 DSA Explorer — Use 3 different DSA concepts
+- 💯 Century — Reach 100 points
+- 🔥 On a Roll — Code 3 days in a row
+- ...and more!
+
+### 🎯 Line-by-Line Explanation
+Right-click any line → **"LiveCode Mentor: Explain This Line"** — get a deep-dive explanation of exactly that line in context.
+
+### 🔄 Adaptive Learning Mode
+Switches between **Learning Mode** (beginner-friendly analogies) and **Developer Mode** (concise technical summaries) based on your preference.
+
+---
+
+## 📦 Installation
+
+### From VS Code Marketplace
+1. Open VS Code
+2. Press `Ctrl+Shift+X` to open Extensions
+3. Search for **"LiveCode Mentor"**
+4. Click **Install**
+
+### From Command Line
+```bash
+code --install-extension payal-mak.livecode-mentor
 ```
-┌─────────────────────────────────────────────────────┐
-│                   VSCode Extension                   │
-│              TypeScript + VSCode API                 │
-│           WebView Sidebar (HTML/CSS/JS)              │
-└─────────────────────┬───────────────────────────────┘
-                      │ HTTP (axios)
-                      ▼
-┌─────────────────────────────────────────────────────┐
-│                  FastAPI Backend                     │
-│                    Python 3.11                       │
-│                                                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
-│  │ AST      │  │ Tracer   │  │  Groq AI         │  │
-│  │ Parser   │  │ sys.     │  │  llama-3.3-70b   │  │
-│  │          │  │ settrace │  │                  │  │
-│  └──────────┘  └──────────┘  └──────────────────┘  │
-│                                                      │
-│  ┌─────────────────────────────────────────────┐    │
-│  │           SQLite Database                   │    │
-│  │  concept_history | mistake_history |        │    │
-│  │  session_logs                               │    │
-│  └─────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────┘
-```
 
-| Layer | Technology |
+---
+
+## 🖥️ How to Use
+
+1. Install the extension
+2. Click the **🎓 LiveCode Mentor** icon in the Activity Bar (left sidebar)
+3. Open any `.py`, `.js`, `.cpp`, or `.java` file
+4. Start coding — explanations appear automatically!
+
+### Available Commands
+| Command | Description |
 |---|---|
-| IDE Extension | TypeScript, VSCode Extension API |
-| Frontend | WebView HTML/CSS/JS |
-| Backend | Python FastAPI |
-| AI | Groq API (llama-3.3-70b-versatile) |
-| Code Analysis | Python AST, sys.settrace |
-| Database | SQLite (stdlib) |
-| Visualization | Mermaid.js |
-| HTTP Client | Axios |
-| Packaging | vsce |
+| `LiveCode Mentor: Explain This Line` | Right-click any line for a deep explanation |
+| `Reanalyze` | Manually trigger analysis of current file |
+| `Generate Flow` | Create a flowchart of your code |
+| `Set Mode` | Switch between Learning / Developer mode |
 
 ---
 
-## 🚀 Setup Instructions
+## 🌐 Backend & Privacy
 
-### Prerequisites
+LiveCode Mentor uses a **cloud-hosted Python backend** deployed on Render.
 
-Make sure you have these installed:
+- **Backend URL:** `https://livecode-mentor.onrender.com`
+- Your code is sent to the backend for AI analysis via the **Groq API** (Llama 3.3 70B model)
+- Code is processed in real-time and **not stored permanently**
+- Progress, scores, and badges are stored locally in a lightweight database
 
+> ⚠️ **Note:** The free-tier backend may take **up to 30 seconds** to respond after a period of inactivity (Render cold start). This is normal — please wait for the first response.
+
+### Custom Backend
+If you want to run your own backend:
 ```bash
-node --version    # v18 or higher
-python --version  # v3.10 or higher
-git --version
-```
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Payal-mak/LiveCode-Mentor.git
-cd LiveCode-Mentor/livecode-mentor
-```
-
-### 2. Backend Setup (Python + FastAPI)
-
-```bash
-# Navigate to backend folder
-cd backend
-
-# Create and activate virtual environment
-python -m venv venv
-
-# Windows:
-venv\Scripts\activate
-
-# Mac/Linux:
-source venv/bin/activate
-
-# Install dependencies
+git clone https://github.com/Payal-mak/LiveCode-Mentor
+cd LiveCode-Mentor/backend
 pip install -r requirements.txt
-
-# Create .env file
-echo "GROQ_API_KEY=your_groq_api_key_here" > .env
+# Add your GROQ_API_KEY to .env
+uvicorn main:app --reload
 ```
 
-**Get your free Groq API key:**
-1. Go to [console.groq.com](https://console.groq.com)
-2. Sign up with Google
-3. Click API Keys → Create API Key
-4. Copy the key (starts with `gsk_...`)
-
-**Start the backend:**
-```bash
-uvicorn main:app --reload --port 8000
+Then update the setting in VS Code:
 ```
-
-You should see:
-```
-[LiveCode Mentor] Database initialized ✅
-INFO: Application startup complete.
-```
-
-Verify at: `http://localhost:8000/health`
-
-### 3. Extension Setup (VSCode)
-
-Open a **new terminal** (keep backend running):
-
-```bash
-# From livecode-mentor root folder
-cd ..   # if you're in backend/
-npm install
-npm run compile
-```
-
-You should see:
-```
-[watch] build finished
-```
-
-**Run the extension:**
-1. Open the `livecode-mentor` folder in VSCode
-2. Press **F5** (or Run → Start Debugging)
-3. Select **Run Extension**
-4. A second VSCode window opens — this is the **Extension Development Host**
-
-### 4. Test the Extension
-
-In the Extension Development Host window:
-1. Open or create any `.py` file
-2. Click the **🎓 LiveCode Mentor icon** in the left activity bar
-3. Start typing Python code
-4. Watch the Explain tab update in real time!
-
----
-
-## 🏗️ Architecture Overview
-
-```
-User types code in VSCode
-         │
-         ▼
-VSCode Extension (TypeScript)
-  ├── onDidChangeTextDocument → debounce 1.5s → /analyze
-  ├── onDidSaveTextDocument → /analyze + /auto-test
-  └── WebviewViewProvider → renders sidebar HTML
-         │
-         ▼
-FastAPI Backend (Python)
-  │
-  ├── /analyze
-  │     ├── check_syntax() → AST parse → SyntaxError?
-  │     │     └── YES → get_friendly_error() → Groq
-  │     ├── detect_concepts() → AST visitor → concept set
-  │     ├── detect_mistakes() → AST visitor → mistake patterns
-  │     ├── get_experience_level() → SQLite query
-  │     ├── get_explanation() → Groq (adaptive by level + mode)
-  │     └── save_concepts() + save_mistake() → SQLite
-  │
-  ├── /hint → Groq (hint without solution)
-  ├── /check-fix → detect_mistakes() again
-  ├── /flow → Groq (Mermaid.js syntax)
-  ├── /trace → sys.settrace() + mock input()
-  ├── /auto-test → AST analysis + Groq + trace_code()
-  ├── /recommendations → AST fingerprint + Groq
-  ├── /explain-line → Groq (line-specific explanation)
-  └── /stats → SQLite aggregation
-         │
-         ▼
-WebView Sidebar
-  ├── 💡 Explain Tab
-  │     ├── What your code does (adaptive)
-  │     ├── Level badge (🌱 Beginner / ⚡ Intermediate / 🚀 Expert)
-  │     ├── ⚡ Complexity Analysis (Time + Space)
-  │     ├── 🧠 Concepts Detected (pills)
-  │     ├── ⚠️ Error Found (red card)
-  │     ├── 🔍 Line Explanation (click-to-explain)
-  │     ├── 📚 Recommended Resources (LeetCode + articles)
-  │     └── 🧪 Auto Test Results
-  ├── 🔍 Hint Tab
-  │     ├── Hint card (no solutions, just guidance)
-  │     └── ✅ Check My Fix button
-  ├── 🔀 Flow Tab
-  │     ├── Generate Flow Diagram (Mermaid)
-  │     └── Step Through Code (variable stepper)
-  └── 📊 Progress Tab
-        ├── Top concepts bar chart
-        ├── Mistakes detected / fixed
-        └── Session timer
+Settings → LiveCode Mentor → Backend URL → http://localhost:8000
 ```
 
 ---
 
-## 📸 Screenshots
+## 🛠️ Supported Languages
 
-| Tab | Screenshot |
-|---|---|
-| Explain Tab (Learning Mode) | <img width="997" height="894" alt="image" src="https://github.com/user-attachments/assets/f94f56cd-28c3-4ce4-8e09-2e0345e9f413" />
-` |
-| Explain Tab (Developer Mode) | <img width="1017" height="732" alt="image" src="https://github.com/user-attachments/assets/046d0d2b-3281-4a90-b4a5-300b9437f085" />
-` |
-| Hint Tab (mistake detected) | <img width="984" height="681" alt="image" src="https://github.com/user-attachments/assets/bbac4655-6c50-4b58-9dc7-1f9293905711" />
-` |
-| Flow Tab (flow diagram) | <img width="1057" height="734" alt="image" src="https://github.com/user-attachments/assets/3bab70bd-1c0c-42cf-bb1e-a7d053dc9ea6" />
-` |
-| Flow Tab (step through) | <img width="900" height="661" alt="image" src="https://github.com/user-attachments/assets/fc3a4dcd-ee6f-439d-b4b8-eeec0642ecf1" />
-` |
-| Progress Tab | <img width="928" height="945" alt="image" src="https://github.com/user-attachments/assets/3a5140df-a44b-435a-841f-751c6906bf94" />
-` |
+| Language | Explanations | Mistake Detection | Step-Through | Auto Tests |
+|---|---|---|---|---|
+| Python | ✅ | ✅ | ✅ | ✅ |
+| C++ | ✅ | ✅ | ❌ | ❌ |
+| JavaScript | ✅ | ❌ | ❌ | ❌ |
+| Java | ✅ | ❌ | ❌ | ❌ |
+
+> Full execution features currently support Python only. C++ and JavaScript support coming soon!
+
+---
+
+## 🧩 Extension Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| `livecodeMentor.backendUrl` | `https://livecode-mentor.onrender.com` | Backend server URL |
+
+---
+
+## 📋 Requirements
+
+- VS Code `^1.110.0`
+- Internet connection (for AI analysis)
+- No local Python installation needed!
+
+---
+
+## 🐞 Known Issues
+
+- First request after inactivity may take 30–60 seconds (Render free tier cold start)
+- Step-through execution only works for Python files
+- Very large files (>500 lines) may have slower analysis
+
+---
+
+## 📝 Changelog
+
+### 0.0.2
+- Connected to cloud-hosted backend (no local setup needed)
+- Fixed icon format for Marketplace compatibility
+- Improved `.vscodeignore` for smaller package size
+
+### 0.0.1
+- Initial release
+- Real-time AI code explanations
+- Mistake detection (Python)
+- Execution tracer
+- Flow diagram generation
+- Auto test generation
+- Gamification system (badges + scores)
+- LeetCode recommendations
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an issue or pull request at:
+**[github.com/Payal-mak/LiveCode-Mentor](https://github.com/Payal-mak/LiveCode-Mentor)**
 
 ---
 
 ## 👩‍💻 Author
 
-**Payal Makwana**
+**Payal Makwana** — B.Tech ICT, Marwadi University
+
+[![GitHub](https://img.shields.io/badge/GitHub-Payal--mak-black?logo=github)](https://github.com/Payal-mak)
 
 ---
 
-This project was built as part of the Human-Centered Design course.
+## 📄 License
 
----
+[MIT](LICENSE) © 2025 Payal Makwana
