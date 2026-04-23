@@ -2,7 +2,7 @@
   "name": "livecode-mentor",
   "displayName": "LiveCode Mentor",
   "description": "AI-powered coding tutor for beginners",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher":"payal-mak",
   "icon": "media/icon.png",
   "engines": {
@@ -20,9 +20,7 @@
   "bugs": {
     "url": "https://github.com/Payal-mak/LiveCode-Mentor/issues"
   },
-  "activationEvents": [
-    "*"
-  ],
+  "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {

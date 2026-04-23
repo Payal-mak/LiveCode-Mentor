@@ -897,11 +897,11 @@
                     if (window._lastCode && window._lastLang) {
                         const body = JSON.stringify({ code: window._lastCode, language: window._lastLang, mode: 'learning' });
                         const headers = { 'Content-Type': 'application/json' };
-                        fetch('http://localhost:8000/recommendations', { method: 'POST', headers, body })
+                        fetch('https://livecode-mentor.onrender.com/recommendations', { method: 'POST', headers, body })
                             .then(r => r.ok ? r.json() : null)
                             .then(d => { if (d) showRecommendations(d); })
                             .catch(() => {});
-                        fetch('http://localhost:8000/auto-test', { method: 'POST', headers, body })
+                        fetch('https://livecode-mentor.onrender.com/auto-test', { method: 'POST', headers, body })
                             .then(r => r.ok ? r.json() : null)
                             .then(d => { if (d) showAutoTests(d); })
                             .catch(() => {});
@@ -1063,7 +1063,7 @@
                             '<div style="font-size:12px;color:#ff6b6b;padding:8px;">⚠️ No code to trace. Open a file and edit it first.</div>';
                         return;
                     }
-                    const res = await fetch('http://localhost:8000/trace', {
+                    const res = await fetch('https://livecode-mentor.onrender.com/trace', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ code: code, language: lang })
@@ -1272,8 +1272,8 @@
 
             try {
                 const [sRes, scRes] = await Promise.all([
-                    fetch('http://localhost:8000/stats'),
-                    fetch('http://localhost:8000/score')
+                    fetch('https://livecode-mentor.onrender.com/stats'),
+                    fetch('https://livecode-mentor.onrender.com/score')
                 ]);
                 if (!sRes.ok || !scRes.ok) { throw new Error('Server error'); }
                 const stats = await sRes.json();

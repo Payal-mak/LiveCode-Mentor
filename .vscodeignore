@@ -26,3 +26,11 @@ prototype.html
 tsconfig*.json
 esbuild.js
 **/*.map
+
+backend/
+src/
+.vscode/
+.vscode-test.mjs
+eslint.config.mjs
+vsc-extension-quickstart.md
+changelog.md

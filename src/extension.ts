@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import { SidebarProvider } from './SidebarProvider';
 
-const BACKEND_URL = 'http://localhost:8000';
+const BACKEND_URL = 'https://livecode-mentor.onrender.com';
 let debounceTimer: ReturnType<typeof setTimeout>;
 let sidebarProvider: SidebarProvider;
 let lastMistake: { type: string; description: string } | null = null;
