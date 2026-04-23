@@ -3,12 +3,23 @@
   "displayName": "LiveCode Mentor",
   "description": "AI-powered coding tutor for beginners",
   "version": "0.0.1",
+  "publisher":"payal-mak",
+  "icon": "media/icon.svg"
   "engines": {
     "vscode": "^1.110.0"
   },
   "categories": [
-    "Other"
+    "AI", "Programming Languages", "Education"
   ],
+  "keywords": ["ai", "tutor", "code explanation", "live coding", "mentor"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Payal-mak/LiveCode-Mentor.git"
+  },
+  "homepage": "https://github.com/Payal-mak/LiveCode-Mentor#readme",
+  "bugs": {
+    "url": "https://github.com/Payal-mak/LiveCode-Mentor/issues"
+  },
   "activationEvents": [
     "*"
   ],
