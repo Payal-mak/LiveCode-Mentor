@@ -1,8 +1,8 @@
 # 🎓 LiveCode Mentor
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/payal-mak.livecode-mentor?color=blue&label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/payal-mak.livecode-mentor?color=green)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/payal-mak.livecode-mentor)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version/payal-mak.livecode-mentor.svg)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/payal-mak.livecode-mentor.svg)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
+[![Rating](https://vsmarketplacebadges.dev/rating-star/payal-mak.livecode-mentor.svg)](https://marketplace.visualstudio.com/items?itemName=payal-mak.livecode-mentor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **AI-powered coding tutor inside VS Code** — real-time explanations, error detection, execution tracing, and personalized learning for beginner programmers.
