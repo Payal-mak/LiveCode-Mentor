@@ -2,7 +2,10 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import { SidebarProvider } from './SidebarProvider';
 
-const BACKEND_URL = 'https://livecode-mentor.onrender.com';
+function getBackendUrl(): string {
+    return vscode.workspace.getConfiguration('livecodeMentor').get<string>('backendUrl') || 'https://livecode-mentor.onrender.com';
+}
+
 let debounceTimer: ReturnType<typeof setTimeout>;
 let sidebarProvider: SidebarProvider;
 let lastMistake: { type: string; description: string } | null = null;
@@ -27,7 +30,7 @@ vscode.workspace.onDidChangeTextDocument((event) => {
         if (addedLength >= 50 && !change.text.includes('\n\n')) {
             consecutiveTypedChars = 0;
             // Penalize copy-paste
-            axios.post(`${BACKEND_URL}/score`, {
+            axios.post(`${getBackendUrl()}/score`, {
                 delta: -5,
                 reason: "copy-paste detected"
             }).then(res => {
@@ -47,7 +50,7 @@ vscode.workspace.onDidChangeTextDocument((event) => {
             // Reward 50 consecutive typed chars
             if (consecutiveTypedChars >= 50) {
                 consecutiveTypedChars = 0;
-                axios.post(`${BACKEND_URL}/score`, {
+                axios.post(`${getBackendUrl()}/score`, {
                     delta: +3,
                     reason: "typed 50+ chars without copy-paste"
                 }).then(res => {
@@ -94,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             console.log('[LiveCode Mentor] Generating flow diagram...');
             try {
-                const res = await axios.post(`${BACKEND_URL}/flow`, {
+                const res = await axios.post(`${getBackendUrl()}/flow`, {
                     code, language, trigger: 'flow'
                 });
                 sidebarProvider.sendMessage('flow', res.data.mermaid);
@@ -116,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
             const editor = vscode.window.activeTextEditor;
             if (!editor) { return; }
             try {
-                const res = await axios.post(`${BACKEND_URL}/trace`, {
+                const res = await axios.post(`${getBackendUrl()}/trace`, {
                     code: editor.document.getText(),
                     language: editor.document.languageId
                 });
@@ -133,7 +136,7 @@ export function activate(context: vscode.ExtensionContext) {
             const editor = vscode.window.activeTextEditor;
             if (!editor) { return; }
             try {
-                const res = await axios.post(`${BACKEND_URL}/check-fix`, {
+                const res = await axios.post(`${getBackendUrl()}/check-fix`, {
                     code: editor.document.getText(),
                     language: editor.document.languageId
                 });
@@ -187,7 +190,7 @@ export function activate(context: vscode.ExtensionContext) {
             sidebarProvider.sendMessage('switchTab', 'explanation');
 
             try {
-                const res = await axios.post(`${BACKEND_URL}/explain-line`, {
+                const res = await axios.post(`${getBackendUrl()}/explain-line`, {
                     line: lineContent.trim(),
                     line_number: lineIndex + 1,
                     language: editor.document.languageId,
@@ -209,7 +212,7 @@ export function activate(context: vscode.ExtensionContext) {
             const editor = vscode.window.activeTextEditor;
             if (!editor) { return; }
             try {
-                const res = await axios.post(`${BACKEND_URL}/current-mistakes`, {
+                const res = await axios.post(`${getBackendUrl()}/current-mistakes`, {
                     code: editor.document.getText(),
                     language: editor.document.languageId
                 });
@@ -221,11 +224,11 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Health check
-    axios.get(`${BACKEND_URL}/health`)
+    axios.get(`${getBackendUrl()}/health`)
     .then(res => {
         vscode.window.showInformationMessage(`LiveCode Mentor: ${res.data.status}`);
         // Fetch initial score
-        return axios.get(`${BACKEND_URL}/score`);
+        return axios.get(`${getBackendUrl()}/score`);
     })
     .then(res => {
         sidebarProvider.sendMessage('scoreInit', {
@@ -265,7 +268,7 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
     //console.log(`[LiveCode Mentor] Sending code (trigger: ${trigger})`);
 
     try {
-        const res = await axios.post(`${BACKEND_URL}/analyze`, {
+        const res = await axios.post(`${getBackendUrl()}/analyze`, {
             code, language, trigger
         });
 
@@ -286,7 +289,7 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
             // FR14 + FR15: Recommendations
             if (!res.data.has_error && res.data.concepts && res.data.concepts.length > 0) {
                 try {
-                    const recRes = await axios.post(`${BACKEND_URL}/recommendations`, {
+                    const recRes = await axios.post(`${getBackendUrl()}/recommendations`, {
                         code, language, trigger
                     });
                     sidebarProvider.sendMessage('recommendations', recRes.data);
@@ -300,7 +303,7 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
             if (res.data.mistake && res.data.mistake.has_mistake) {
                 lastMistake = res.data.mistake.mistake;
                 try {
-                    const hintRes = await axios.post(`${BACKEND_URL}/hint`, {
+                    const hintRes = await axios.post(`${getBackendUrl()}/hint`, {
                         code,
                         language,
                         mistake_type: res.data.mistake.mistake.description
@@ -319,7 +322,7 @@ async function sendCodeToBackend(document: vscode.TextDocument, trigger: string)
         // FR8: Auto test on save only
         if (trigger === 'save') {
             try {
-                const testRes = await axios.post(`${BACKEND_URL}/auto-test`, {
+                const testRes = await axios.post(`${getBackendUrl()}/auto-test`, {
                     code, language, trigger
                 });
                 sidebarProvider.sendMessage('autotest', testRes.data);

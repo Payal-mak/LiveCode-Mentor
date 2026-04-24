@@ -2,7 +2,7 @@
   "name": "livecode-mentor",
   "displayName": "LiveCode Mentor",
   "description": "AI-powered coding tutor for beginners",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher":"payal-mak",
   "icon": "media/icon.png",
   "engines": {
@@ -41,6 +41,16 @@
           "icon": "media/icon.png"
         }
       ]
+    },
+    "configuration": {
+      "title": "LiveCode Mentor",
+      "properties": {
+        "livecodeMentor.backendUrl": {
+          "type": "string",
+          "default": "https://livecode-mentor.onrender.com",
+          "description": "Backend server URL for LiveCode Mentor. Use http://localhost:8000 for local development."
+        }
+      }
     },
     "commands": [
       {
