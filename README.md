@@ -71,6 +71,8 @@ Switches between **Learning Mode** (beginner-friendly analogies) and **Developer
 4. Click **Install**
 
 ### From Command Line
+
+**Install the latest version from the marketplace:**
 ```bash
 code --install-extension payal-mak.livecode-mentor
 ```
