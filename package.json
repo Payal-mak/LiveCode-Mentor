@@ -2,7 +2,7 @@
   "name": "livecode-mentor",
   "displayName": "LiveCode Mentor",
   "description": "AI-powered coding tutor for beginners",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher":"payal-mak",
   "icon": "media/icon.png",
   "engines": {
@@ -28,7 +28,7 @@
         {
           "id": "livecode-mentor",
           "title": "LiveCode Mentor",
-          "icon": "media/icon.svg"
+          "icon": "media/icon.png"
         }
       ]
     },
@@ -37,7 +37,8 @@
         {
           "type": "webview",
           "id": "livecodeMentor",
-          "name": "LiveCode Mentor"
+          "name": "LiveCode Mentor",
+          "icon": "media/icon.png"
         }
       ]
     },

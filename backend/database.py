@@ -84,7 +84,8 @@ MAJOR_DSA = {
 # ─────────────────────────────────────────────────────────────────────────────
 # DATABASE SETUP
 # ─────────────────────────────────────────────────────────────────────────────
-DB_PATH = os.environ.get("DB_PATH", "/tmp/learner.db")
+_DEFAULT_DB = os.path.join(os.path.dirname(__file__), "learner.db")
+DB_PATH = os.environ.get("DB_PATH", _DEFAULT_DB)
 
 
 def get_conn():
